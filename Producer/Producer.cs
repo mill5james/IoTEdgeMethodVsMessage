@@ -1,0 +1,80 @@
+﻿using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Azure.Devices.Client;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
+
+namespace IotEdge
+{
+    class Producer : IHostedService
+    {
+        public static async Task Main(string[] args)
+        {
+            var host = new HostBuilder()
+                .ConfigureHostConfiguration(configHost =>
+                {
+                    configHost.AddJsonFile("appsettings.json", optional: true);
+                    configHost.AddEnvironmentVariables();
+                })
+                .ConfigureLogging((hostContext, configLogging) =>
+                {
+                    configLogging.AddConfiguration(hostContext.Configuration.GetSection("Logging"));
+                    configLogging.AddConsole();
+                })
+                .ConfigureServices((hostContext, services) =>
+                {
+                    services.AddSingleton<IHostedService, Producer>();
+                });
+            await host.RunConsoleAsync();
+        }
+
+        private readonly CancellationTokenSource ctSource = new CancellationTokenSource();
+        private readonly ILogger<Producer> logger;
+        private ModuleClient moduleClient;
+
+        public Producer(ILogger<Producer> logger)
+        {
+            this.logger = logger;
+        }
+
+        public async Task StartAsync(CancellationToken cancellationToken)
+        {
+            moduleClient = await ModuleClient.CreateFromEnvironmentAsync(); 
+            await moduleClient.OpenAsync(cancellationToken);
+
+            await moduleClient.SetMethodHandlerAsync(nameof(GetTimeMethod), GetTimeMethod, this);
+            await moduleClient.SetInputMessageHandlerAsync(nameof(GetTimeMessage), GetTimeMessage, this);
+        }
+
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            logger.LogInformation("Stopping");
+            ctSource.Cancel();
+            moduleClient?.Dispose();
+
+            return Task.CompletedTask;
+        }
+
+        private byte[] GetPayload() => Encoding.Unicode.GetBytes(JsonConvert.SerializeObject(new { utcTime = DateTime.UtcNow }));
+
+        private Task<MethodResponse> GetTimeMethod(MethodRequest methodRequest, object userContext) {
+            var response = new MethodResponse(GetPayload(), 200);
+            return Task.FromResult(response);
+        }
+
+        private async Task<MessageResponse> GetTimeMessage(Message message, object userContext) {
+            var response = new Message(GetPayload());
+            await moduleClient.SendEventAsync(response);
+            return MessageResponse.Completed;
+        }
+
+
+    }
+}
