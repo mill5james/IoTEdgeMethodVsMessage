@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -39,6 +40,8 @@ namespace IotEdge
         private readonly ILogger<Producer> logger;
         private ModuleClient moduleClient;
 
+        private Stopwatch stopwatch = new Stopwatch();
+
         public Producer(ILogger<Producer> logger)
         {
             this.logger = logger;
@@ -49,8 +52,8 @@ namespace IotEdge
             moduleClient = await ModuleClient.CreateFromEnvironmentAsync(); 
             await moduleClient.OpenAsync(cancellationToken);
 
-            await moduleClient.SetMethodHandlerAsync(nameof(GetTimeMethod), GetTimeMethod, this);
-            await moduleClient.SetInputMessageHandlerAsync(nameof(GetTimeMessage), GetTimeMessage, this);
+            await moduleClient.SetMethodHandlerAsync(nameof(GetTimeMethod), GetTimeMethod, ctSource.Token);
+            await moduleClient.SetInputMessageHandlerAsync(nameof(GetTimeMessage), GetTimeMessage, ctSource.Token);
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
@@ -70,11 +73,20 @@ namespace IotEdge
         }
 
         private async Task<MessageResponse> GetTimeMessage(Message message, object userContext) {
-            var response = new Message(GetPayload());
-            await moduleClient.SendEventAsync(response);
-            return MessageResponse.Completed;
+            try {
+                stopwatch.Start();
+                var response = new Message(GetPayload());
+                await moduleClient.SendEventAsync(response, (CancellationToken)userContext);
+                return MessageResponse.Completed;
+            }
+            catch (OperationCanceledException) {
+                return MessageResponse.Abandoned;
+            }
+            finally{
+                stopwatch.Stop();
+                logger.LogInformation("Sent message in {0:g} ms", stopwatch.Elapsed);
+                stopwatch.Reset();
+            }
         }
-
-
     }
 }
