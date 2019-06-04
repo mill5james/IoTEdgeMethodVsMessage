@@ -39,7 +39,6 @@ namespace IotEdge
         private readonly CancellationTokenSource ctSource = new CancellationTokenSource();
         private readonly ILogger<Producer> logger;
         private ModuleClient moduleClient;
-
         private Stopwatch stopwatch = new Stopwatch();
 
         public Producer(ILogger<Producer> logger)
@@ -49,11 +48,11 @@ namespace IotEdge
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
-            moduleClient = await ModuleClient.CreateFromEnvironmentAsync(); 
+            moduleClient = await ModuleClient.CreateFromEnvironmentAsync();
             await moduleClient.OpenAsync(cancellationToken);
 
             await moduleClient.SetMethodHandlerAsync(nameof(GetTimeMethod), GetTimeMethod, ctSource.Token);
-            await moduleClient.SetInputMessageHandlerAsync(nameof(GetTimeMessage), GetTimeMessage, ctSource.Token);
+            await moduleClient.SetInputMessageHandlerAsync(nameof(GetTimeMessage), GetTimeMessage, null, ctSource.Token);
         }
 
         public Task StopAsync(CancellationToken cancellationToken)
@@ -65,26 +64,31 @@ namespace IotEdge
             return Task.CompletedTask;
         }
 
-        private byte[] GetPayload() => Encoding.Unicode.GetBytes(JsonConvert.SerializeObject(new { utcTime = DateTime.UtcNow }));
+        private byte[] GetPayload() => Encoding.Unicode.GetBytes(JsonConvert.SerializeObject(new { UtcTime = DateTime.UtcNow }));
 
-        private Task<MethodResponse> GetTimeMethod(MethodRequest methodRequest, object userContext) {
+        private Task<MethodResponse> GetTimeMethod(MethodRequest methodRequest, object userContext)
+        {
             var response = new MethodResponse(GetPayload(), 200);
             return Task.FromResult(response);
         }
 
-        private async Task<MessageResponse> GetTimeMessage(Message message, object userContext) {
-            try {
+        private async Task<MessageResponse> GetTimeMessage(Message message, object userContext)
+        {
+            try
+            {
                 stopwatch.Start();
-                var response = new Message(GetPayload());
-                await moduleClient.SendEventAsync(response, (CancellationToken)userContext);
+                var response = new Message(GetPayload()) { CorrelationId = message.CorrelationId };
+                await moduleClient.SendEventAsync(nameof(GetTimeMessage), response, (CancellationToken)userContext);
                 return MessageResponse.Completed;
             }
-            catch (OperationCanceledException) {
+            catch (OperationCanceledException)
+            {
                 return MessageResponse.Abandoned;
             }
-            finally{
+            finally
+            {
                 stopwatch.Stop();
-                logger.LogInformation("Sent message in {0:g} ms", stopwatch.Elapsed);
+                logger.LogInformation("Sent message in {0} ms", stopwatch.Elapsed.ToString("g"));
                 stopwatch.Reset();
             }
         }
