@@ -21,7 +21,7 @@ namespace IoTEdge
 
                 var cts = new CancellationTokenSource();
 
-                await moduleClient.SetInputMessageHandlerAsync(nameof(GetTimeMessage), GetTimeMessage, resetEvent, cts.Token);
+                await moduleClient.SetInputMessageHandlerAsync(nameof(GetTimeMessage), GetTimeMessage, userContext: resetEvent, cts.Token);
                 await Task.Factory.StartNew(() => RequestTimeMessage(moduleClient, resetEvent, cts.Token), TaskCreationOptions.LongRunning);
                 await Task.Factory.StartNew(() => GetTimeMethod(moduleClient, cts.Token), TaskCreationOptions.LongRunning);
 
