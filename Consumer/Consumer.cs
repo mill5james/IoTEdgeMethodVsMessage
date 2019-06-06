@@ -16,26 +16,23 @@ namespace IoTEdge
         {
             using (var moduleClient = await ModuleClient.CreateFromEnvironmentAsync())
             using (var resetEvent = new ManualResetEventSlim(false))
+            using (var cts = new CancellationTokenSource())
             {
                 await moduleClient.OpenAsync();
-
-                var cts = new CancellationTokenSource();
-
                 await moduleClient.SetInputMessageHandlerAsync(nameof(GetTimeMessage), GetTimeMessage, userContext: resetEvent, cts.Token);
+
                 await Task.Factory.StartNew(() => RequestTimeMessage(moduleClient, resetEvent, cts.Token), TaskCreationOptions.LongRunning);
                 await Task.Factory.StartNew(() => GetTimeMethod(moduleClient, cts.Token), TaskCreationOptions.LongRunning);
 
                 AssemblyLoadContext.Default.Unloading += (_) => cts.Cancel();
                 Console.CancelKeyPress += (_, __) => cts.Cancel();
-                await WhenCancelled(cts.Token);
+                await Task.Factory.StartNew((t) =>
+                {
+                    var tcs = new TaskCompletionSource<bool>();
+                    ((CancellationToken)t).Register(s => ((TaskCompletionSource<bool>)s).SetResult(true), tcs);
+                    return tcs.Task;
+                }, cts.Token);
             }
-        }
-
-        public static Task WhenCancelled(CancellationToken cancellationToken)
-        {
-            var tcs = new TaskCompletionSource<bool>();
-            cancellationToken.Register(s => ((TaskCompletionSource<bool>)s).SetResult(true), tcs);
-            return tcs.Task;
         }
 
         private static async Task GetTimeMethod(ModuleClient moduleClient, CancellationToken cancellationToken)

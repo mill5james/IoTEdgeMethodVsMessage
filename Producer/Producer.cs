@@ -12,23 +12,22 @@ namespace IotEdge
     {
         public static async Task Main(string[] args)
         {
-            var moduleClient = await ModuleClient.CreateFromEnvironmentAsync();
-            await moduleClient.OpenAsync();
+            using (var moduleClient = await ModuleClient.CreateFromEnvironmentAsync())
+            using (var cts = new CancellationTokenSource())
+            {
+                await moduleClient.OpenAsync();
+                await moduleClient.SetMethodHandlerAsync(nameof(GetTimeMethod), GetTimeMethod, moduleClient);
+                await moduleClient.SetInputMessageHandlerAsync(nameof(GetTimeMessage), GetTimeMessage, moduleClient);
 
-            await moduleClient.SetMethodHandlerAsync(nameof(GetTimeMethod), GetTimeMethod, moduleClient);
-            await moduleClient.SetInputMessageHandlerAsync(nameof(GetTimeMessage), GetTimeMessage, moduleClient);
-
-            var cts = new CancellationTokenSource();
-            AssemblyLoadContext.Default.Unloading += (_) => cts.Cancel();
-            Console.CancelKeyPress += (_, __) => cts.Cancel();
-            await WhenCancelled(cts.Token);
-        }
-
-        public static Task WhenCancelled(CancellationToken cancellationToken)
-        {
-            var tcs = new TaskCompletionSource<bool>();
-            cancellationToken.Register(s => ((TaskCompletionSource<bool>)s).SetResult(true), tcs);
-            return tcs.Task;
+                AssemblyLoadContext.Default.Unloading += (_) => cts.Cancel();
+                Console.CancelKeyPress += (_, __) => cts.Cancel();
+                await Task.Factory.StartNew((t) =>
+                {
+                    var tcs = new TaskCompletionSource<bool>();
+                    ((CancellationToken)t).Register(s => ((TaskCompletionSource<bool>)s).SetResult(true), tcs);
+                    return tcs.Task;
+                }, cts.Token);
+            }
         }
 
         private static byte[] GetPayload() => Encoding.Unicode.GetBytes(JsonConvert.SerializeObject(new { UtcTime = DateTime.UtcNow }));
