@@ -1,3 +1,5 @@
+ARG BASE_TAG=alpine
+
 FROM microsoft/dotnet:2.2-sdk AS build
 ARG CONFIG=Release
 WORKDIR /src
@@ -5,6 +7,6 @@ WORKDIR /src
 COPY [".", "."]
 RUN dotnet publish --configuration ${CONFIG} --output /app
 
-FROM microsoft/dotnet:2.2-runtime as final
+FROM microsoft/dotnet:2.2-runtime-$BASE_TAG as final
 WORKDIR /app
 COPY --from=build ["/app", "."]
