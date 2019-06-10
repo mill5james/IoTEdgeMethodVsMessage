@@ -4,7 +4,9 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Azure.Devices.Client;
+using Microsoft.Azure.Devices.Client.Transport.Mqtt;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace IotEdge
 {
@@ -12,38 +14,69 @@ namespace IotEdge
     {
         public static async Task Main(string[] args)
         {
-            using (var moduleClient = await ModuleClient.CreateFromEnvironmentAsync())
+#if DEBUG
+            int count = 0;
+            while (!System.Diagnostics.Debugger.IsAttached && (count++ < 60))
+            {
+                Thread.Sleep(1000);
+                Console.WriteLine("Waiting for debugger");
+            }
+#endif
+            Console.WriteLine("{0:O} - Starting", DateTime.Now);
+            ITransportSettings[] settings = { new MqttTransportSettings(TransportType.Mqtt_Tcp_Only) };
+            using (var moduleClient = await ModuleClient.CreateFromEnvironmentAsync(settings))
             using (var cts = new CancellationTokenSource())
             {
                 await moduleClient.OpenAsync();
                 await moduleClient.SetMethodHandlerAsync(nameof(GetTimeMethod), GetTimeMethod, moduleClient);
                 await moduleClient.SetInputMessageHandlerAsync(nameof(GetTimeMessage), GetTimeMessage, moduleClient);
 
-                AssemblyLoadContext.Default.Unloading += (_) => cts.Cancel();
-                Console.CancelKeyPress += (_, __) => cts.Cancel();
-                await Task.Factory.StartNew((t) =>
-                {
-                    var tcs = new TaskCompletionSource<bool>();
-                    ((CancellationToken)t).Register(s => ((TaskCompletionSource<bool>)s).SetResult(true), tcs);
-                    return tcs.Task;
-                }, cts.Token);
+                // Wait until the app unloads or is cancelled
+                AssemblyLoadContext.Default.Unloading += (ctx) => cts.Cancel();
+                Console.CancelKeyPress += (sender, cpe) => cts.Cancel();
+                await WhenCancelled(cts.Token);
             }
+            Console.WriteLine("{0:O} - Exiting", DateTime.Now);
         }
 
-        private static byte[] GetPayload() => Encoding.Unicode.GetBytes(JsonConvert.SerializeObject(new { UtcTime = DateTime.UtcNow }));
+        public static Task WhenCancelled(CancellationToken cancellationToken)
+        {
+            var tcs = new TaskCompletionSource<bool>();
+            cancellationToken.Register(s => ((TaskCompletionSource<bool>)s).SetResult(true), tcs);
+            return tcs.Task;
+        }
+        private static byte[] GetPayload() => Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(new { UtcTime = DateTime.UtcNow }));
 
         private static Task<MethodResponse> GetTimeMethod(MethodRequest methodRequest, object userContext)
         {
-            var response = new MethodResponse(GetPayload(), 200);
-            return Task.FromResult(response);
+            Console.WriteLine("{0:O} - GetTimeMethod", DateTime.Now);
+            try
+            {
+                var response = new MethodResponse(GetPayload(), 200);
+                return Task.FromResult(response);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                return Task.FromResult(new MethodResponse(500));
+            }
         }
 
         private static async Task<MessageResponse> GetTimeMessage(Message message, object userContext)
         {
-            var moduleClient = (ModuleClient)userContext;
-            var response = new Message(GetPayload()) { CorrelationId = message.CorrelationId };
-            await moduleClient.SendEventAsync(nameof(GetTimeMessage), response);
-            return MessageResponse.Completed;
+            Console.WriteLine("{0:O} - GetTimeMessage", DateTime.Now);
+            try
+            {
+                var moduleClient = (ModuleClient)userContext;
+                var response = new Message(GetPayload()) { CorrelationId = message.CorrelationId };
+                await moduleClient.SendEventAsync(nameof(GetTimeMessage), response);
+                return MessageResponse.Completed;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+                return MessageResponse.Abandoned;
+            }
         }
     }
 }
