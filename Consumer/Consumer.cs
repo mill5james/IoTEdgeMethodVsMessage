@@ -5,6 +5,8 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Azure.Devices.Client;
+using Microsoft.Azure.Devices.Client.Transport.Mqtt;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 namespace IoTEdge
@@ -14,37 +16,60 @@ namespace IoTEdge
         private static string DeviceId { get; } = Environment.GetEnvironmentVariable("IOTEDGE_DEVICEID");
         public static async Task Main(string[] args)
         {
-            using (var moduleClient = await ModuleClient.CreateFromEnvironmentAsync())
+#if DEBUG
+            int count = 0;
+            while (!System.Diagnostics.Debugger.IsAttached && (count++ < 60))
+            {
+                Thread.Sleep(1000);
+                Console.WriteLine("Waiting for debugger");
+            }
+#endif
+            Console.WriteLine("{0:O} - Starting", DateTime.Now);
+            ITransportSettings[] settings = { new MqttTransportSettings(TransportType.Mqtt_Tcp_Only) };
+            using (var moduleClient = await ModuleClient.CreateFromEnvironmentAsync(settings))
             using (var resetEvent = new ManualResetEventSlim(false))
             using (var cts = new CancellationTokenSource())
             {
                 await moduleClient.OpenAsync();
                 await moduleClient.SetInputMessageHandlerAsync(nameof(GetTimeMessage), GetTimeMessage, userContext: resetEvent, cts.Token);
 
-                await Task.Factory.StartNew(() => RequestTimeMessage(moduleClient, resetEvent, cts.Token), TaskCreationOptions.LongRunning);
-                await Task.Factory.StartNew(() => GetTimeMethod(moduleClient, cts.Token), TaskCreationOptions.LongRunning);
+                // Wait until the app unloads or is cancelled
+                AssemblyLoadContext.Default.Unloading += (ctx) => cts.Cancel();
+                Console.CancelKeyPress += (sender, cpe) => cts.Cancel();
 
-                AssemblyLoadContext.Default.Unloading += (_) => cts.Cancel();
-                Console.CancelKeyPress += (_, __) => cts.Cancel();
-                await Task.Factory.StartNew((t) =>
-                {
-                    var tcs = new TaskCompletionSource<bool>();
-                    ((CancellationToken)t).Register(s => ((TaskCompletionSource<bool>)s).SetResult(true), tcs);
-                    return tcs.Task;
-                }, cts.Token);
+                Console.WriteLine("{0:O} - Waiting", DateTime.Now);
+                await Task.WhenAll(
+                    Task.Run(async () => await GetTimeMethod(moduleClient, cts.Token)),
+                    Task.Run(() => RequestTimeMessage(moduleClient, resetEvent, cts.Token)),
+                    WhenCancelled(cts.Token));
             }
+            Console.WriteLine("{0:O} - Ending", DateTime.Now);
+        }
+
+        public static Task WhenCancelled(CancellationToken cancellationToken)
+        {
+            var tcs = new TaskCompletionSource<bool>();
+            cancellationToken.Register(s => ((TaskCompletionSource<bool>)s).SetResult(true), tcs);
+            return tcs.Task;
         }
 
         private static async Task GetTimeMethod(ModuleClient moduleClient, CancellationToken cancellationToken)
         {
             while (!cancellationToken.IsCancellationRequested)
             {
-                var begin = DateTime.UtcNow;
-                var response = await moduleClient.InvokeMethodAsync(DeviceId, new MethodRequest("GetTimeMethod"), cancellationToken);
-                var end = DateTime.UtcNow;
-                var payload = JObject.Parse(response.ResultAsJson);
-                var produced = payload.Value<DateTime>("UtcTime");
-                LogTiming(begin, produced, end);
+                try
+                {
+                    var begin = DateTime.UtcNow;
+                    var response = await moduleClient.InvokeMethodAsync(DeviceId, "producer", new MethodRequest("GetTimeMethod"), cancellationToken);
+                    var end = DateTime.UtcNow;
+                    var payload = JObject.Parse(response.ResultAsJson);
+                    var produced = payload.Value<DateTime>("UtcTime");
+                    LogTiming(begin, produced, end);
+                }
+                catch (System.Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                }
             }
         }
 
@@ -52,23 +77,38 @@ namespace IoTEdge
         {
             while (!cancellationToken.IsCancellationRequested)
             {
-                resetEvent.Reset();
-                var message = new Message { CorrelationId = DateTime.UtcNow.ToString("O") };
-                await moduleClient.SendEventAsync("GetTimeMessage", message);
-                resetEvent.Wait(cancellationToken);
+                try
+                {
+                    resetEvent.Reset();
+                    var message = new Message { CorrelationId = DateTime.UtcNow.ToString("O") };
+                    await moduleClient.SendEventAsync("GetTimeMessage", message);
+                    resetEvent.Wait(cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                }
             }
         }
 
         private static Task<MessageResponse> GetTimeMessage(Message message, object userContext)
         {
-            var end = DateTime.UtcNow;
-            var begin = DateTime.Parse(message.CorrelationId);
-            var payload = JObject.Parse(Encoding.Unicode.GetString(message.GetBytes()));
-            var produced = payload.Value<DateTime>("UtcTime");
-            LogTiming(begin, produced, end);
-            ((ManualResetEventSlim)userContext).Set();
+            try
+            {
+                var end = DateTime.UtcNow;
+                var begin = DateTime.Parse(message.CorrelationId);
+                var payload = JObject.Parse(Encoding.UTF8.GetString(message.GetBytes()));
+                var produced = payload.Value<DateTime>("UtcTime");
+                LogTiming(begin, produced, end);
+                ((ManualResetEventSlim)userContext).Set();
 
-            return Task.FromResult(MessageResponse.Completed);
+                return Task.FromResult(MessageResponse.Completed);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+                return Task.FromResult(MessageResponse.Abandoned);
+            }
         }
 
         private static void LogTiming(DateTime begin, DateTime produced, DateTime end, [CallerMemberName] string memberName = "")
@@ -76,7 +116,7 @@ namespace IoTEdge
             var requestLatency = produced - begin;
             var responseLatency = end - produced;
             var totalLatency = end - begin;
-            Console.WriteLine("{0} - Request Latency: {1}, Reponse Latency: {2}, Total Latency: {3}", memberName, requestLatency, responseLatency, totalLatency);
+            Console.WriteLine("{0:O} {1} - Request Latency: {2:c}, Reponse Latency: {3:c}, Total Latency: {4:c}", DateTime.Now, memberName, requestLatency, responseLatency, totalLatency);
         }
     }
 }
