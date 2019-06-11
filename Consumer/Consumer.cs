@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using System.Runtime.Loader;
 using System.Text;
@@ -40,7 +41,8 @@ namespace IoTEdge
                 Console.WriteLine("{0:O} - Waiting", DateTime.Now);
                 await Task.WhenAll(
                     Task.Run(async () => await GetTimeMethod(moduleClient, cts.Token)),
-                    Task.Run(() => RequestTimeMessage(moduleClient, resetEvent, cts.Token)),
+                    Task.Run(async () => await RequestTimeMessage(moduleClient, resetEvent, cts.Token)),
+                    Task.Run(() => PrintStatistics(cts.Token)),
                     WhenCancelled(cts.Token));
             }
             Console.WriteLine("{0:O} - Ending", DateTime.Now);
@@ -111,12 +113,66 @@ namespace IoTEdge
             }
         }
 
+        private static ConcurrentQueue<(string Method, DateTime Begin, DateTime Produced, DateTime End)> measurements = new ConcurrentQueue<(string Method, DateTime Begin, DateTime Produced, DateTime End)>();
+
         private static void LogTiming(DateTime begin, DateTime produced, DateTime end, [CallerMemberName] string memberName = "")
         {
-            var requestLatency = produced - begin;
-            var responseLatency = end - produced;
-            var totalLatency = end - begin;
-            Console.WriteLine("{0:O} {1} - Request Latency: {2:c}, Reponse Latency: {3:c}, Total Latency: {4:c}", DateTime.Now, memberName, requestLatency, responseLatency, totalLatency);
+            measurements.Enqueue((memberName, begin, produced, end));
+        }
+
+        private static void PrintStatistics(CancellationToken cancellationToken)
+        {
+            Func<(long min, long max, long avg), long, (long,long,long)> computeStats = (tuple, val) => { 
+                tuple.min = Math.Min(tuple.min, val);
+                tuple.max = Math.Max(tuple.max, val);
+                tuple.avg += val;
+                return tuple;
+            };
+
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                var stats = (
+                    Method: (Request:   (min: long.MaxValue, max: long.MinValue, avg: 0L),
+                            Response:   (min: long.MaxValue, max: long.MinValue, avg: 0L),
+                            Total:      (min: long.MaxValue, max: long.MinValue, avg: 0L)),
+                    Message: (Request:  (min: long.MaxValue, max: long.MinValue, avg: 0L),
+                            Response:   (min: long.MaxValue, max: long.MinValue, avg: 0L),
+                            Total:      (min: long.MaxValue, max: long.MinValue, avg: 0L)));
+
+                //await Task.Delay((int)TimeSpan.FromMinutes(1).TotalMilliseconds, cancellationToken);
+                Thread.Sleep((int)TimeSpan.FromMinutes(1).TotalMilliseconds);
+                var count = measurements.Count;
+                var now = DateTime.Now;
+                var i = 0;
+                while ((i++ < count) && measurements.TryDequeue(out var measure))
+                {
+                    if (measure.Method == nameof(GetTimeMessage)) {
+                        stats.Message.Request = computeStats(stats.Message.Request, (measure.Produced - measure.Begin).Ticks);
+                        stats.Message.Response = computeStats(stats.Message.Response, (measure.End - measure.Produced).Ticks);
+                        stats.Message.Total = computeStats(stats.Message.Total, (measure.End - measure.Begin).Ticks);
+
+                    }
+                    else {
+                        stats.Method.Request = computeStats(stats.Method.Request, (measure.Produced - measure.Begin).Ticks);
+                        stats.Method.Response = computeStats(stats.Method.Response, (measure.End - measure.Produced).Ticks);
+                        stats.Method.Total = computeStats(stats.Method.Total, (measure.End - measure.Begin).Ticks);
+                    }
+
+                }
+                Console.WriteLine($"{now:O}");
+                Console.WriteLine("                   | Min              | Max              | Avg              |");
+                Console.WriteLine("--------+----------+------------------+------------------+------------------|");
+                Console.WriteLine("        | Request  | {0:c} | {1:c} | {2:c} |", new TimeSpan(stats.Message.Request.min), new TimeSpan(stats.Message.Request.max), new TimeSpan(stats.Message.Request.avg / count));
+                Console.WriteLine("Message | Response | {0:c} | {1:c} | {2:c} |", new TimeSpan(stats.Message.Response.min), new TimeSpan(stats.Message.Response.max), new TimeSpan(stats.Message.Response.avg / count));
+                Console.WriteLine("        | Total    | {0:c} | {1:c} | {2:c} |", new TimeSpan(stats.Message.Total.min), new TimeSpan(stats.Message.Total.max), new TimeSpan(stats.Message.Total.avg / count));
+                Console.WriteLine("--------+----------+------------------+------------------+------------------|");
+                Console.WriteLine("        | Request  | {0:c} | {1:c} | {2:c} |", new TimeSpan(stats.Method.Request.min), new TimeSpan(stats.Method.Request.max), new TimeSpan(stats.Method.Request.avg / count));
+                Console.WriteLine("Method  | Response | {0:c} | {1:c} | {2:c} |", new TimeSpan(stats.Method.Response.min), new TimeSpan(stats.Method.Response.max), new TimeSpan(stats.Method.Response.avg / count));
+                Console.WriteLine("        | Total    | {0:c} | {1:c} | {2:c} |", new TimeSpan(stats.Method.Total.min), new TimeSpan(stats.Method.Total.max), new TimeSpan(stats.Method.Total.avg / count));
+                Console.WriteLine("--------+----------+------------------+------------------+------------------|");
+                
+            }
+
         }
     }
 }
