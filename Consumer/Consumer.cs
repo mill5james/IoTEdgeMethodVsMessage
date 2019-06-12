@@ -69,7 +69,7 @@ namespace IoTEdge
                 }
                 catch (System.Exception ex)
                 {
-                    Console.WriteLine($"GetTimeMethod caught exception {ex.GetType().Name} - {ex.Message}");
+                    LogException(ex);
                 }
             }
         }
@@ -87,7 +87,7 @@ namespace IoTEdge
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"RequestTimeMessage caught exception {ex.GetType().Name} - {ex.Message}");
+                    LogException(ex);
                 }
             }
         }
@@ -107,21 +107,24 @@ namespace IoTEdge
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"GetTimeMessage caught exception {ex.GetType().Name} - {ex.Message}");
-                if (ex.InnerException != null) {
-                    Console.WriteLine($"Inner exception {ex.InnerException.GetType().Name} - {ex.InnerException.Message}");
-                }
+                LogException(ex);
                 return Task.FromResult(MessageResponse.Abandoned);
             }
         }
 
         private static ConcurrentQueue<(string Method, DateTime Begin, DateTime Produced, DateTime End)> measurements = new ConcurrentQueue<(string Method, DateTime Begin, DateTime Produced, DateTime End)>();
 
-        private static void LogTiming(DateTime begin, DateTime produced, DateTime end, [CallerMemberName] string memberName = "")
-        {
-            measurements.Enqueue((memberName, begin, produced, end));
-        }
+        private static void LogTiming(DateTime begin, DateTime produced, DateTime end, [CallerMemberName] string memberName = "") => measurements.Enqueue((memberName, begin, produced, end));
 
+        private static void LogException(Exception ex, [CallerMemberName] string memberName = "") {
+                Console.WriteLine($"{memberName}: Caught exception {ex.GetType().Name} - {ex.Message}");
+                var inner = ex.InnerException;
+                while (inner != null) {
+                    Console.WriteLine($"Inner exception {ex.InnerException.GetType().Name} - {ex.InnerException.Message}");
+                    inner = inner.InnerException;
+                }
+                Console.WriteLine(ex.StackTrace);
+        }
         private static void PrintStatistics(CancellationToken cancellationToken)
         {
             Func<(long min, long max, long avg), long, (long,long,long)> computeStats = (tuple, val) => { 
@@ -141,7 +144,6 @@ namespace IoTEdge
                             Response:   (min: long.MaxValue, max: long.MinValue, avg: 0L),
                             Total:      (min: long.MaxValue, max: long.MinValue, avg: 0L)));
 
-                //await Task.Delay((int)TimeSpan.FromMinutes(1).TotalMilliseconds, cancellationToken);
                 Thread.Sleep((int)TimeSpan.FromMinutes(1).TotalMilliseconds);
                 var count = measurements.Count;
                 var now = DateTime.Now;
@@ -161,17 +163,17 @@ namespace IoTEdge
                         stats.Method.Total = computeStats(stats.Method.Total, (measure.End - measure.Begin).Ticks);
                     }
                 }
-                Console.WriteLine($"{now:O} - Processed {count} items in 1 minute");
-                Console.WriteLine("                   | Min           | Max           | Avg           |");
-                Console.WriteLine("--------+----------+---------------+---------------+---------------|");
-                Console.WriteLine("        | Request  | {0:mm\\:ss\\.fffffff} | {1:mm\\:ss\\.fffffff} | {2:%mm\\:%ss\\.fffffff} |", new TimeSpan(stats.Message.Request.min), new TimeSpan(stats.Message.Request.max), new TimeSpan(stats.Message.Request.avg / count));
-                Console.WriteLine("Message | Response | {0:mm\\:ss\\.fffffff} | {1:mm\\:ss\\.fffffff} | {2:%mm\\:%ss\\.fffffff} |", new TimeSpan(stats.Message.Response.min), new TimeSpan(stats.Message.Response.max), new TimeSpan(stats.Message.Response.avg / count));
-                Console.WriteLine("{3,7:G} | Total    | {0:mm\\:ss\\.fffffff} | {1:mm\\:ss\\.fffffff} | {2:%mm\\:%ss\\.fffffff} |", new TimeSpan(stats.Message.Total.min), new TimeSpan(stats.Message.Total.max), new TimeSpan(stats.Message.Total.avg / count), messageCount);
-                Console.WriteLine("--------+----------+---------------+---------------+---------------|");
-                Console.WriteLine("        | Request  | {0:mm\\:ss\\.fffffff} | {1:mm\\:ss\\.fffffff} | {2:%mm\\:%ss\\.fffffff} |", new TimeSpan(stats.Method.Request.min), new TimeSpan(stats.Method.Request.max), new TimeSpan(stats.Method.Request.avg / count));
-                Console.WriteLine("Method  | Response | {0:mm\\:ss\\.fffffff} | {1:mm\\:ss\\.fffffff} | {2:%mm\\:%ss\\.fffffff} |", new TimeSpan(stats.Method.Response.min), new TimeSpan(stats.Method.Response.max), new TimeSpan(stats.Method.Response.avg / count));
-                Console.WriteLine("{3,7:G} | Total    | {0:mm\\:ss\\.fffffff} | {1:mm\\:ss\\.fffffff} | {2:%mm\\:%ss\\.fffffff} |", new TimeSpan(stats.Method.Total.min), new TimeSpan(stats.Method.Total.max), new TimeSpan(stats.Method.Total.avg / count), methodCount);
-                Console.WriteLine("--------+----------+---------------+---------------+---------------|");
+                Console.WriteLine($"{now:O} - {count} items in 1 minute");
+                Console.WriteLine("                | Min           | Max           | Avg           |");
+                Console.WriteLine("--------+-------+---------------+---------------+---------------|");
+                Console.WriteLine("        | C->P  | {0:mm\\:ss\\.fffffff} | {1:mm\\:ss\\.fffffff} | {2:%mm\\:ss\\.fffffff} |", new TimeSpan(stats.Message.Request.min), new TimeSpan(stats.Message.Request.max), new TimeSpan(stats.Message.Request.avg / count));
+                Console.WriteLine("Message | P->C  | {0:mm\\:ss\\.fffffff} | {1:mm\\:ss\\.fffffff} | {2:%mm\\:ss\\.fffffff} |", new TimeSpan(stats.Message.Response.min), new TimeSpan(stats.Message.Response.max), new TimeSpan(stats.Message.Response.avg / count));
+                Console.WriteLine("{3,7:G} | Total | {0:mm\\:ss\\.fffffff} | {1:mm\\:ss\\.fffffff} | {2:%mm\\:ss\\.fffffff} |", new TimeSpan(stats.Message.Total.min), new TimeSpan(stats.Message.Total.max), new TimeSpan(stats.Message.Total.avg / count), messageCount);
+                Console.WriteLine("--------+-------+---------------+---------------+---------------|");
+                Console.WriteLine("        | C->P  | {0:mm\\:ss\\.fffffff} | {1:mm\\:ss\\.fffffff} | {2:%mm\\:ss\\.fffffff} |", new TimeSpan(stats.Method.Request.min), new TimeSpan(stats.Method.Request.max), new TimeSpan(stats.Method.Request.avg / count));
+                Console.WriteLine("Method  | P->C  | {0:mm\\:ss\\.fffffff} | {1:mm\\:ss\\.fffffff} | {2:%mm\\:ss\\.fffffff} |", new TimeSpan(stats.Method.Response.min), new TimeSpan(stats.Method.Response.max), new TimeSpan(stats.Method.Response.avg / count));
+                Console.WriteLine("{3,7:G} | Total | {0:mm\\:ss\\.fffffff} | {1:mm\\:ss\\.fffffff} | {2:%mm\\:ss\\.fffffff} |", new TimeSpan(stats.Method.Total.min), new TimeSpan(stats.Method.Total.max), new TimeSpan(stats.Method.Total.avg / count), methodCount);
+                Console.WriteLine("--------+-------+---------------+---------------+---------------|");
                 
             }
 
