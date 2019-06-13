@@ -1,6 +1,6 @@
 # IoTEdgeMethodVsMessage
 
-Demonstrates a problem with the Azure IoT Edge runtime
+Demonstrates a problems with the Azure IoT Edge runtime
 
 ## Producer
 
@@ -14,7 +14,7 @@ Sends a message to the Producer module and waits for a message response on an in
 
 ### Statistics
 
-The statisitcs are collected every minute in a background task. They capture:
+The statisitcs are collected by the Consumer module every minute in a background task. They capture:
 
 * The total number of message and messages send and received
 * The latency for sending a message or invoking a method from the consumer to the producer (C->P)
@@ -37,12 +37,25 @@ Method  | P->C  | 00:00.0012644 | 00:07.4075739 | 00:00.0062872 |
 
 ## Exceptions seen
 
+Intermitently I see an `IotHubCommunicationException` with the message "The SSL connection could not be established, see inner exception." when calling `ModuleClient.InvokeMethodAsync`. The module recovers and subsequent calls succeed.
 
 
 ``` txt
 GetTimeMethod: Caught exception IotHubCommunicationException - The SSL connection could not be established, see inner exception.
 Inner exception HttpRequestException - The SSL connection could not be established, see inner exception.
 Inner exception HttpRequestException - The SSL connection could not be established, see inner exception.
+   at Microsoft.Azure.Devices.Client.Transport.HttpClientHelper.ExecuteAsync(HttpMethod httpMethod, Uri requestUri, Func`3 modifyRequestMessageAsync, Func`2 isSuccessful, Func`3 processResponseMessageAsync, IDictionary`2 errorMappingOverrides, CancellationToken cancellationToken)
+   at Microsoft.Azure.Devices.Client.Transport.HttpClientHelper.PostAsync[T1,T2](Uri requestUri, T1 entity, IDictionary`2 errorMappingOverrides, IDictionary`2 customHeaders, CancellationToken cancellationToken)
+   at Microsoft.Azure.Devices.Client.ModuleClient.InvokeMethodAsync(Uri uri, MethodRequest methodRequest, CancellationToken cancellationToken)
+   at IoTEdge.Consumer.GetTimeMethod(ModuleClient moduleClient, CancellationToken cancellationToken) in /src/Consumer/Consumer.cs:line 64
+```
+
+After running for some time, I see an `IotHubCommunicationException` with the message "Address already in use" when calling `ModuleClient.InvokeMethodAsync`. Once we receive this exception, the module never recovers and every subsequent call returns the same exception.
+
+``` txt
+06/13/2019 17:54:17 - GetTimeMethod: Caught exception IotHubCommunicationException - Address already in use
+Inner exception HttpRequestException - Address already in use
+Inner exception HttpRequestException - Address already in use
    at Microsoft.Azure.Devices.Client.Transport.HttpClientHelper.ExecuteAsync(HttpMethod httpMethod, Uri requestUri, Func`3 modifyRequestMessageAsync, Func`2 isSuccessful, Func`3 processResponseMessageAsync, IDictionary`2 errorMappingOverrides, CancellationToken cancellationToken)
    at Microsoft.Azure.Devices.Client.Transport.HttpClientHelper.PostAsync[T1,T2](Uri requestUri, T1 entity, IDictionary`2 errorMappingOverrides, IDictionary`2 customHeaders, CancellationToken cancellationToken)
    at Microsoft.Azure.Devices.Client.ModuleClient.InvokeMethodAsync(Uri uri, MethodRequest methodRequest, CancellationToken cancellationToken)
