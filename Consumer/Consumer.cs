@@ -112,12 +112,8 @@ namespace IoTEdge
             }
         }
 
-        private static ConcurrentQueue<(string Method, DateTime Begin, DateTime Produced, DateTime End)> measurements = new ConcurrentQueue<(string Method, DateTime Begin, DateTime Produced, DateTime End)>();
-
-        private static void LogTiming(DateTime begin, DateTime produced, DateTime end, [CallerMemberName] string memberName = "") => measurements.Enqueue((memberName, begin, produced, end));
-
         private static void LogException(Exception ex, [CallerMemberName] string memberName = "") {
-                Console.WriteLine($"{memberName}: Caught exception {ex.GetType().Name} - {ex.Message}");
+                Console.WriteLine($"{DateTime.Now} - {memberName}: Caught exception {ex.GetType().Name} - {ex.Message}");
                 var inner = ex.InnerException;
                 while (inner != null) {
                     Console.WriteLine($"Inner exception {ex.InnerException.GetType().Name} - {ex.InnerException.Message}");
@@ -125,6 +121,11 @@ namespace IoTEdge
                 }
                 Console.WriteLine(ex.StackTrace);
         }
+
+        private static ConcurrentQueue<(string Method, DateTime Begin, DateTime Produced, DateTime End)> measurements = new ConcurrentQueue<(string Method, DateTime Begin, DateTime Produced, DateTime End)>();
+
+        private static void LogTiming(DateTime begin, DateTime produced, DateTime end, [CallerMemberName] string memberName = "") => measurements.Enqueue((memberName, begin, produced, end));
+
         private static void PrintStatistics(CancellationToken cancellationToken)
         {
             Func<(long min, long max, long avg), long, (long,long,long)> computeStats = (tuple, val) => { 

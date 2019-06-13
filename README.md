@@ -17,8 +17,8 @@ Sends a message to the Producer module and waits for a message response on an in
 The statisitcs are collected every minute in a background task. They capture:
 
 * The total number of message and messages send and received
-* The latency for sending a message to the producer or invoking a method from the consumer to the producer (C->P)
-* The latency for sending a message response or handling the method invocation from the producer to the consumer (P->C)
+* The latency for sending a message or invoking a method from the consumer to the producer (C->P)
+* The latency for sending a message or handling the method invocation from the producer to the consumer (P->C)
 * The total latency as seen at the consumer (Total).
 
 ```  txt
@@ -33,4 +33,18 @@ Message | P->C  | 00:00.0010394 | 01:30.7039632 | 00:00.0506138 |
 Method  | P->C  | 00:00.0012644 | 00:07.4075739 | 00:00.0062872 |
    1713 | Total | 00:00.0157815 | 00:07.4268208 | 00:00.0218252 |
 --------+-------+---------------+---------------+---------------|
+```
+
+## Exceptions seen
+
+
+
+``` txt
+GetTimeMethod: Caught exception IotHubCommunicationException - The SSL connection could not be established, see inner exception.
+Inner exception HttpRequestException - The SSL connection could not be established, see inner exception.
+Inner exception HttpRequestException - The SSL connection could not be established, see inner exception.
+   at Microsoft.Azure.Devices.Client.Transport.HttpClientHelper.ExecuteAsync(HttpMethod httpMethod, Uri requestUri, Func`3 modifyRequestMessageAsync, Func`2 isSuccessful, Func`3 processResponseMessageAsync, IDictionary`2 errorMappingOverrides, CancellationToken cancellationToken)
+   at Microsoft.Azure.Devices.Client.Transport.HttpClientHelper.PostAsync[T1,T2](Uri requestUri, T1 entity, IDictionary`2 errorMappingOverrides, IDictionary`2 customHeaders, CancellationToken cancellationToken)
+   at Microsoft.Azure.Devices.Client.ModuleClient.InvokeMethodAsync(Uri uri, MethodRequest methodRequest, CancellationToken cancellationToken)
+   at IoTEdge.Consumer.GetTimeMethod(ModuleClient moduleClient, CancellationToken cancellationToken) in /src/Consumer/Consumer.cs:line 64
 ```

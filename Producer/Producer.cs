@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Runtime.CompilerServices;
 using System.Runtime.Loader;
 using System.Text;
 using System.Threading;
@@ -57,7 +58,7 @@ namespace IotEdge
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex);
+                LogException(ex);
                 return Task.FromResult(new MethodResponse(500));
             }
         }
@@ -74,9 +75,20 @@ namespace IotEdge
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message);
+                LogException(ex);
                 return MessageResponse.Abandoned;
             }
         }
+        
+        private static void LogException(Exception ex, [CallerMemberName] string memberName = "") {
+                Console.WriteLine($"{DateTime.Now} - {memberName}: Caught exception {ex.GetType().Name} - {ex.Message}");
+                var inner = ex.InnerException;
+                while (inner != null) {
+                    Console.WriteLine($"Inner exception {ex.InnerException.GetType().Name} - {ex.InnerException.Message}");
+                    inner = inner.InnerException;
+                }
+                Console.WriteLine(ex.StackTrace);
+        }
+
     }
 }
