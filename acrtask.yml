@@ -7,6 +7,6 @@ steps:
   - {{.Run.Registry}}/consumer:{{.Run.ID}}
 # Build producer image
 - build: --tag {{.Run.Registry}}/producer:{{.Run.ID}} -f ./Producer/Dockerfile .
-# Push consumer image
+# Push producer image
 - push:
-  - {{.Run.Registry}}/consumer:{{.Run.ID}}
+  - {{.Run.Registry}}/producer:{{.Run.ID}}
