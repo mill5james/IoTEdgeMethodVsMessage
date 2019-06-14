@@ -1,0 +1,12 @@
+version: v1.0.0
+steps:
+# Build consumer image
+- build: --tag {{.Run.Registry}}/consumer:{{.Run.ID}} -f ./Consumer/Dockerfile .
+# Push consumer image
+- push:
+  - {{.Run.Registry}}/consumer:{{.Run.ID}}
+# Build producer image
+- build: --tag {{.Run.Registry}}/producer:{{.Run.ID}} -f ./Producer/Dockerfile .
+# Push consumer image
+- push:
+  - {{.Run.Registry}}/consumer:{{.Run.ID}}
