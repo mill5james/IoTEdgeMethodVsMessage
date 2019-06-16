@@ -23,6 +23,7 @@ namespace IoTEdge
         {
 #if DEBUG
             int count = 60;
+            Console.WriteLine($"Waiting for debugger. {count} seconds left before continuing");
             while (!System.Diagnostics.Debugger.IsAttached && (count-- > 0))
             {
                 if (0 == count % 10) Console.WriteLine($"Waiting for debugger. {count} seconds left before continuing");
@@ -161,6 +162,8 @@ namespace IoTEdge
                 Thread.Sleep((int)TimeSpan.FromMinutes(1).TotalMilliseconds);
                 var count = measurements.Count;
                 var now = DateTime.Now;
+                Console.WriteLine($"{now:O} - {count} items in 1 minute");
+                if (count == 0) continue;
                 int i = 0, messageCount = 0, methodCount = 0;
                 while ((i++ < count) && measurements.TryDequeue(out var measure))
                 {
@@ -179,7 +182,6 @@ namespace IoTEdge
                         stats.Method.Total = computeStats(stats.Method.Total, (measure.End - measure.Begin).Ticks);
                     }
                 }
-                Console.WriteLine($"{now:O} - {count} items in 1 minute");
                 Console.WriteLine("                | Min           | Max           | Avg           |");
                 Console.WriteLine("--------+-------+---------------+---------------+---------------|");
                 if (EnableMessage)
