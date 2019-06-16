@@ -6,11 +6,15 @@ Demonstrates a problems with the Azure IoT Edge runtime
 
 Implements direct method handler and an input message handler that just return the current time in UTC.
 
+The latest image can be found in the Docker Hub at [mill5james/producer](https://hub.docker.com/r/mill5james/producer)
+
 ## Consumer
 
 Calls the direct method on the Producer module and records the timestamps for the method call.
 
 Sends a message to the Producer module and waits for a message response on an input mesage handler, then records  timestamps for the message exchange.
+
+The latest image can be found in the Docker Hub at [mill5james/consumer](https://hub.docker.com/r/mill5james/consumer)
 
 ### Statistics
 
@@ -35,7 +39,7 @@ Method  | P->C  | 00:00.0012644 | 00:07.4075739 | 00:00.0062872 |
 --------+-------+---------------+---------------+---------------|
 ```
 
-## Exceptions seen
+## Exceptions seen in the Consumer module
 
 Intermitently I see an `IotHubCommunicationException` with the message "The SSL connection could not be established, see inner exception." when calling `ModuleClient.InvokeMethodAsync`. The module recovers and subsequent calls succeed.
 
@@ -64,14 +68,14 @@ Inner exception HttpRequestException - Address already in use
 
 ## Build
 
-By default the Dockerfile build will produce a image for Release targeting the stretch-slim .NET Code 2.2 image. Invoke the `docker build` command from the root of the repo.
+By default the Dockerfile build will produce a image for `Release` targeting the `stretch-slim` .NET Code 2.2 image. Invoke the `docker build` command from the root of the repo.
 
 ``` powershell
 docker build --file "Consumer\Dockerfile" --tag consumer:latest $PWD
 docker build --file "Producer\Dockerfile" --tag producer:latest $PWD
 ```
 
-To build for debug, pass the build a build argumnet `CONFIG-Debug` which will build for Debug and include the debugger in the image
+To build for debug, pass the build a build argumnet `CONFIG=Debug` which will build for Debug and include the debugger in the image
 
 ``` powershell
 docker build --file "Consumer\Dockerfile" --tag consumer:latest --build-arg CONFIG=Debug $PWD
@@ -83,7 +87,7 @@ To target another base image, pass the `BASE_TAG` build argumnet.
 For example, to target alpine base image:
 
 ``` powershell
-docker build --file "Consumer\Dockerfile" --tag /consumer:alpine --build-arg BASE_TAG=alpine $PWD
+docker build --file "Consumer\Dockerfile" --tag consumer:alpine --build-arg BASE_TAG=alpine $PWD
 ```
 
 For example, to target an ARM32 base image:
@@ -92,7 +96,7 @@ For example, to target an ARM32 base image:
 docker build --file "Consumer\Dockerfile" --tag consumer:arm32v7 --build-arg BASE_TAG=arm32v7 $PWD
 ```
 
-## Deployment
+## IoT Edge Deployment
 
 The only deployment requirements are the message routes between the consumer and producer modules
 
@@ -101,5 +105,28 @@ The only deployment requirements are the message routes between the consumer and
       "ConsumerToProducer": "FROM /messages/modules/consumer/outputs/GetTimeMessage INTO BrokeredEndpoint(\"/modules/producer/inputs/GetTimeMessage\")",
       "ProducerToConsumer": "FROM /messages/modules/producer/outputs/GetTimeMessage INTO BrokeredEndpoint(\"/modules/consumer/inputs/GetTimeMessage\")"
    },
+```
+
+You can disable invoking methods or sending messages from consumer module the deployment by passing `false` to the `EnableMethod` or `EnableMessage` environment variables.
+
+``` json
+   "consumer": {
+      "settings": {
+            "image": "mill5james/consumer:latest",
+            "createOptions": "{}"
+      },
+      "type": "docker",
+      "env": {
+            "EnableMethod": {
+               "value": "true"
+            },
+            "EnableMessage": {
+               "value": "true"
+            }
+      },
+      "version": "1.0",
+      "status": "running",
+      "restartPolicy": "always"
+   }
 ```
 
