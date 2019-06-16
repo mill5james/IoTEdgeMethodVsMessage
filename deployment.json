@@ -72,8 +72,8 @@
         "$edgeHub": {
             "properties.desired": {
                 "routes": {
-                    "consumerToProducer": "FROM /messages/modules/Consumer/outputs/GetTimeMessage INTO BrokeredEndpoint(\"/modules/Producer/inputs/GetTimeMessage\")",
-                    "producerToConsumer": "FROM /messages/modules/Producer/outputs/GetTimeMessage INTO BrokeredEndpoint(\"/modules/Consumer/inputs/GetTimeMessage\")"
+                    "consumerToProducer": "FROM /messages/modules/consumer/outputs/GetTimeMessage INTO BrokeredEndpoint(\"/modules/producer/inputs/GetTimeMessage\")",
+                    "producerToConsumer": "FROM /messages/modules/producer/outputs/GetTimeMessage INTO BrokeredEndpoint(\"/modules/consumer/inputs/GetTimeMessage\")"
                 },
                 "schemaVersion": "1.0",
                 "storeAndForwardConfiguration": {
