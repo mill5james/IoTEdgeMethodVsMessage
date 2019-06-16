@@ -71,15 +71,15 @@ Inner exception HttpRequestException - Address already in use
 By default the Dockerfile build will produce a image for `Release` targeting the `stretch-slim` .NET Code 2.2 image. Invoke the `docker build` command from the root of the repo.
 
 ``` powershell
-docker build --file "Consumer\Dockerfile" --tag consumer:latest $PWD
-docker build --file "Producer\Dockerfile" --tag producer:latest $PWD
+docker build --file "Consumer/Dockerfile" --tag consumer:latest $PWD
+docker build --file "Producer/Dockerfile" --tag producer:latest $PWD
 ```
 
 To build for debug, pass the build a build argumnet `CONFIG=Debug` which will build for Debug and include the debugger in the image
 
 ``` powershell
-docker build --file "Consumer\Dockerfile" --tag consumer:latest --build-arg CONFIG=Debug $PWD
-docker build --file "Producer\Dockerfile" --tag producer:latest --build-arg CONFIG=Debug $PWD
+docker build --file "Consumer/Dockerfile" --tag consumer:latest --build-arg CONFIG=Debug $PWD
+docker build --file "Producer/Dockerfile" --tag producer:latest --build-arg CONFIG=Debug $PWD
 ```
 
 To target another base image, pass the `BASE_TAG` build argumnet.
@@ -87,13 +87,13 @@ To target another base image, pass the `BASE_TAG` build argumnet.
 For example, to target alpine base image:
 
 ``` powershell
-docker build --file "Consumer\Dockerfile" --tag consumer:alpine --build-arg BASE_TAG=alpine $PWD
+docker build --file "Consumer/Dockerfile" --tag consumer:alpine --build-arg BASE_TAG=alpine $PWD
 ```
 
 For example, to target an ARM32 base image:
 
 ``` powershell
-docker build --file "Consumer\Dockerfile" --tag consumer:arm32v7 --build-arg BASE_TAG=arm32v7 $PWD
+docker build --file "Consumer/Dockerfile" --tag consumer:arm32v7 --build-arg BASE_TAG=arm32v7 $PWD
 ```
 
 ## IoT Edge Deployment
