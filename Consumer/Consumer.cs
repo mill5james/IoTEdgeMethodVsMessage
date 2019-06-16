@@ -23,12 +23,12 @@ namespace IoTEdge
         {
 #if DEBUG
             int count = 60;
-            Console.WriteLine($"Waiting for debugger. {count} seconds left before continuing");
-            while (!System.Diagnostics.Debugger.IsAttached && (count-- > 0))
+            do
             {
                 if (0 == count % 10) Console.WriteLine($"Waiting for debugger. {count} seconds left before continuing");
                 await Task.Delay(1000);
             }
+            while (!System.Diagnostics.Debugger.IsAttached && (count-- > 0));
 #endif
 
             Console.WriteLine("{0:O} - Starting", DateTime.Now);
@@ -139,7 +139,7 @@ namespace IoTEdge
 
         private static void LogTiming(DateTime begin, DateTime produced, DateTime end, [CallerMemberName] string memberName = "") => measurements.Enqueue((memberName, begin, produced, end));
 
-        private static void PrintStatistics(CancellationToken cancellationToken)
+        private static async Task PrintStatistics(CancellationToken cancellationToken)
         {
             Func<(long min, long max, long avg), long, (long, long, long)> computeStats = (tuple, val) =>
             {
@@ -159,7 +159,7 @@ namespace IoTEdge
                             Response: (min: long.MaxValue, max: long.MinValue, avg: 0L),
                             Total: (min: long.MaxValue, max: long.MinValue, avg: 0L)));
 
-                Thread.Sleep((int)TimeSpan.FromMinutes(1).TotalMilliseconds);
+                await Task.Delay((int)TimeSpan.FromMinutes(1).TotalMilliseconds, cancellationToken);
                 var count = measurements.Count;
                 var now = DateTime.Now;
                 Console.WriteLine($"{now:O} - {count} items in 1 minute");
