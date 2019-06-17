@@ -1,6 +1,6 @@
 # IoTEdgeMethodVsMessage
 
-Demonstrates a problems with the Azure IoT Edge runtime
+Demonstrates sending messages and calling direct methods between modules using the Azure IoT Edge runtime
 
 ## Producer
 
