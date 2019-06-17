@@ -1,9 +1,9 @@
 .git
 .vs
 .vscode
-bin/
-obj/
+**/bin/
+**/obj/
+**/Dockerfile
 .dockerignore
 .gitignore
 .gitattributes
-Dockerfile
