@@ -16,11 +16,11 @@ Sends a message to the Producer module and waits for a message response on an in
 
 The latest image can be found in the Docker Hub at [mill5james/consumer](https://hub.docker.com/r/mill5james/consumer)
 
-### Statistics
+### Statistics from the Consumer
 
 The statisitcs are collected by the Consumer module every minute in a background task. They capture:
 
-* The total number of message and messages send and received
+* The total number messages send and received and method calls
 * The latency for sending a message or invoking a method from the consumer to the producer (C->P)
 * The latency for sending a message or handling the method invocation from the producer to the consumer (P->C)
 * The total latency as seen at the consumer (Total).
@@ -39,9 +39,85 @@ Method  | P->C  | 00:00.0012644 | 00:07.4075739 | 00:00.0062872 |
 --------+-------+---------------+---------------+---------------|
 ```
 
-## Exceptions seen in the Consumer module
+## Build
 
-Intermittently I see an `IotHubCommunicationException` with the message "The SSL connection could not be established, see inner exception." when calling `ModuleClient.InvokeMethodAsync`. The module recovers and subsequent calls succeed.
+By default the Dockerfile build will produce a image for `Release` targeting the `stretch-slim` .NET Code 2.2 image. Invoke the `docker build` command from the root of the repo.
+
+``` powershell
+docker build --file "Consumer/Dockerfile" --tag consumer:latest $PWD
+docker build --file "Producer/Dockerfile" --tag producer:latest $PWD
+```
+
+### Build for Debug
+
+To build for debug, pass the build a build argumnet `CONFIG=Debug` which will build for Debug and include the debugger in the image
+
+``` powershell
+docker build --file "Consumer/Dockerfile" --tag consumer:debug --build-arg CONFIG=Debug $PWD
+docker build --file "Producer/Dockerfile" --tag producer:debug --build-arg CONFIG=Debug $PWD
+```
+
+### Target a different base image
+
+To target another base image, pass the `BASE_TAG` build argumnet.
+
+For example, to target alpine base image:
+
+``` powershell
+docker build --file "Consumer/Dockerfile" --tag consumer:alpine --build-arg BASE_TAG=alpine $PWD
+```
+
+For example, to target an ARM32 base image:
+
+``` powershell
+docker build --file "Consumer/Dockerfile" --tag consumer:arm32v7 --build-arg BASE_TAG=arm32v7 $PWD
+```
+
+## IoT Edge Deployment
+
+If you want to deploy just these modules to an IoT Edge for testing, you can simply download the [deployment.json](https://github.com/mill5james/IoTEdgeMethodVsMessage/blob/master/deployment.json) included in the repository.
+
+If you want deploy these modules along other modules in your environment, the only deployment requirements are the message routes between the consumer and producer modules (assuming that your modules are named `producer` and `consumer` respectively.
+
+``` json
+   "routes": {
+      "ConsumerToProducer": "FROM /messages/modules/consumer/outputs/GetTimeMessage INTO BrokeredEndpoint(\"/modules/producer/inputs/GetTimeMessage\")",
+      "ProducerToConsumer": "FROM /messages/modules/producer/outputs/GetTimeMessage INTO BrokeredEndpoint(\"/modules/consumer/inputs/GetTimeMessage\")"
+   },
+```
+
+### Customize your deployment
+
+You can disable invoking methods or sending messages from consumer module the deployment by passing `false` to the `EnableMethod` or `EnableMessage` environment variables.
+
+``` json
+   "consumer": {
+      "settings": {
+            "image": "mill5james/consumer:latest",
+            "createOptions": "{}"
+      },
+      "type": "docker",
+      "env": {
+            "EnableMethod": {
+               "value": "true"
+            },
+            "EnableMessage": {
+               "value": "true"
+            }
+      },
+      "version": "1.0",
+      "status": "running",
+      "restartPolicy": "always"
+   }
+```
+
+## Known Issues
+
+As of the iotedge 1.0.7.1 release, these are the known issues.
+
+### Exceptions seen in the Consumer module
+
+Intermittently I see an `IotHubCommunicationException` with the message "The SSL connection could not be established, see inner exception." when calling `ModuleClient.InvokeMethodAsync(...)`. The module recovers and subsequent calls succeed.
 
 
 ``` txt
@@ -54,7 +130,7 @@ Inner exception HttpRequestException - The SSL connection could not be establish
    at IoTEdge.Consumer.GetTimeMethod(ModuleClient moduleClient, CancellationToken cancellationToken) in /src/Consumer/Consumer.cs:line 64
 ```
 
-After running for some time, I see an `IotHubCommunicationException` with the message "Address already in use" when calling `ModuleClient.InvokeMethodAsync`. Once we receive this exception, the module never recovers and every subsequent call returns the same exception.
+After running for some time, I see an `IotHubCommunicationException` with the message "Address already in use" when calling `ModuleClient.InvokeMethodAsync(...)`. Once we receive this exception, the module never recovers and every subsequent call returns the same exception.
 
 ``` txt
 06/13/2019 17:54:17 - GetTimeMethod: Caught exception IotHubCommunicationException - Address already in use
@@ -66,7 +142,7 @@ Inner exception HttpRequestException - Address already in use
    at IoTEdge.Consumer.GetTimeMethod(ModuleClient moduleClient, CancellationToken cancellationToken) in /src/Consumer/Consumer.cs:line 64
 ```
 
-## Exceptions seen in the Edge Hub
+### Exceptions seen in the Edge Hub
 
 When only sending messages between modules, we will repeatedly see unacknowledged messages in the Edge Hub without any error in the producer or consumer. These will be followed by exceptions from the MQTT stack. I have no clue as to the periodicity of these exceptions.
 
@@ -94,68 +170,3 @@ System.TimeoutException: Message completion response not received
    at DotNetty.Codecs.ByteToMessageDecoder.ChannelRead(IChannelHandlerContext context, Object message)
    at DotNetty.Transport.Channels.AbstractChannelHandlerContext.InvokeChannelRead(Object msg)
 ```
-
-## Build
-
-By default the Dockerfile build will produce a image for `Release` targeting the `stretch-slim` .NET Code 2.2 image. Invoke the `docker build` command from the root of the repo.
-
-``` powershell
-docker build --file "Consumer/Dockerfile" --tag consumer:latest $PWD
-docker build --file "Producer/Dockerfile" --tag producer:latest $PWD
-```
-
-To build for debug, pass the build a build argumnet `CONFIG=Debug` which will build for Debug and include the debugger in the image
-
-``` powershell
-docker build --file "Consumer/Dockerfile" --tag consumer:latest --build-arg CONFIG=Debug $PWD
-docker build --file "Producer/Dockerfile" --tag producer:latest --build-arg CONFIG=Debug $PWD
-```
-
-To target another base image, pass the `BASE_TAG` build argumnet.
-
-For example, to target alpine base image:
-
-``` powershell
-docker build --file "Consumer/Dockerfile" --tag consumer:alpine --build-arg BASE_TAG=alpine $PWD
-```
-
-For example, to target an ARM32 base image:
-
-``` powershell
-docker build --file "Consumer/Dockerfile" --tag consumer:arm32v7 --build-arg BASE_TAG=arm32v7 $PWD
-```
-
-## IoT Edge Deployment
-
-The only deployment requirements are the message routes between the consumer and producer modules
-
-``` json
-   "routes": {
-      "ConsumerToProducer": "FROM /messages/modules/consumer/outputs/GetTimeMessage INTO BrokeredEndpoint(\"/modules/producer/inputs/GetTimeMessage\")",
-      "ProducerToConsumer": "FROM /messages/modules/producer/outputs/GetTimeMessage INTO BrokeredEndpoint(\"/modules/consumer/inputs/GetTimeMessage\")"
-   },
-```
-
-You can disable invoking methods or sending messages from consumer module the deployment by passing `false` to the `EnableMethod` or `EnableMessage` environment variables.
-
-``` json
-   "consumer": {
-      "settings": {
-            "image": "mill5james/consumer:latest",
-            "createOptions": "{}"
-      },
-      "type": "docker",
-      "env": {
-            "EnableMethod": {
-               "value": "true"
-            },
-            "EnableMessage": {
-               "value": "true"
-            }
-      },
-      "version": "1.0",
-      "status": "running",
-      "restartPolicy": "always"
-   }
-```
-
