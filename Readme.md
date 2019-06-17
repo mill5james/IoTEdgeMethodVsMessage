@@ -41,7 +41,7 @@ Method  | P->C  | 00:00.0012644 | 00:07.4075739 | 00:00.0062872 |
 
 ## Exceptions seen in the Consumer module
 
-Intermitently I see an `IotHubCommunicationException` with the message "The SSL connection could not be established, see inner exception." when calling `ModuleClient.InvokeMethodAsync`. The module recovers and subsequent calls succeed.
+Intermittently I see an `IotHubCommunicationException` with the message "The SSL connection could not be established, see inner exception." when calling `ModuleClient.InvokeMethodAsync`. The module recovers and subsequent calls succeed.
 
 
 ``` txt
@@ -64,6 +64,35 @@ Inner exception HttpRequestException - Address already in use
    at Microsoft.Azure.Devices.Client.Transport.HttpClientHelper.PostAsync[T1,T2](Uri requestUri, T1 entity, IDictionary`2 errorMappingOverrides, IDictionary`2 customHeaders, CancellationToken cancellationToken)
    at Microsoft.Azure.Devices.Client.ModuleClient.InvokeMethodAsync(Uri uri, MethodRequest methodRequest, CancellationToken cancellationToken)
    at IoTEdge.Consumer.GetTimeMethod(ModuleClient moduleClient, CancellationToken cancellationToken) in /src/Consumer/Consumer.cs:line 64
+```
+
+## Exceptions seen in the Edge Hub
+
+When only sending messages between modules, we will repeatedly see unacknowledged messages in the Edge Hub without any error in the producer or consumer. These will be followed by exceptions from the MQTT stack. I have no clue as to the periodicity of these exceptions.
+
+``` log
+2019-06-16 21:06:13.114 +00:00 [WRN] - Error sending messages to module jamesp-iotedge2/producer
+System.TimeoutException: Message completion response not received
+   at Microsoft.Azure.Devices.Edge.Hub.Core.Device.DeviceMessageHandler.SendMessageAsync(IMessage message, String input) in /home/vsts/work/1/s/edge-hub/src/Microsoft.Azure.Devices.Edge.Hub.Core/device/DeviceMessageHandler.cs:line 363
+   at Microsoft.Azure.Devices.Edge.Hub.Core.Routing.ModuleEndpoint.ModuleMessageProcessor.ProcessAsync(ICollection`1 routingMessages, IDeviceProxy dp, CancellationToken token) in /home/vsts/work/1/s/edge-hub/src/Microsoft.Azure.Devices.Edge.Hub.Core/routing/ModuleEndpoint.cs:line 164
+2019-06-16 21:06:14.139 +00:00 [WRN] - Closing connection for device: jamesp-iotedge2/consumer, scope: ExceptionCaught, DotNetty.Codecs.DecoderException: [MQTT-2.3.1-1]
+   at DotNetty.Codecs.Mqtt.MqttDecoder.DecodePacketIdVariableHeader(IByteBuffer buffer, PacketWithId packet, Int32& remainingLength)
+   at DotNetty.Codecs.Mqtt.MqttDecoder.DecodePublishPacket(IByteBuffer buffer, PublishPacket packet, Int32& remainingLength)
+   at DotNetty.Codecs.Mqtt.MqttDecoder.DecodePacketInternal(IByteBuffer buffer, Int32 packetSignature, Int32& remainingLength, IChannelHandlerContext context)
+   at DotNetty.Codecs.Mqtt.MqttDecoder.TryDecodePacket(IByteBuffer buffer, IChannelHandlerContext context, Packet& packet)
+   at DotNetty.Codecs.Mqtt.MqttDecoder.Decode(IChannelHandlerContext context, IByteBuffer input, List`1 output)
+   at DotNetty.Codecs.ReplayingDecoder`1.CallDecode(IChannelHandlerContext context, IByteBuffer input, List`1 output)
+   at DotNetty.Codecs.ByteToMessageDecoder.ChannelRead(IChannelHandlerContext context, Object message)
+   at DotNetty.Transport.Channels.AbstractChannelHandlerContext.InvokeChannelRead(Object msg), 6cfe9aea
+2019-06-16 21:06:14.140 +00:00 [INF] - Disposing MessagingServiceClient for device Id jamesp-iotedge2/consumer because of exception - DotNetty.Codecs.DecoderException: [MQTT-2.3.1-1]
+   at DotNetty.Codecs.Mqtt.MqttDecoder.DecodePacketIdVariableHeader(IByteBuffer buffer, PacketWithId packet, Int32& remainingLength)
+   at DotNetty.Codecs.Mqtt.MqttDecoder.DecodePublishPacket(IByteBuffer buffer, PublishPacket packet, Int32& remainingLength)
+   at DotNetty.Codecs.Mqtt.MqttDecoder.DecodePacketInternal(IByteBuffer buffer, Int32 packetSignature, Int32& remainingLength, IChannelHandlerContext context)
+   at DotNetty.Codecs.Mqtt.MqttDecoder.TryDecodePacket(IByteBuffer buffer, IChannelHandlerContext context, Packet& packet)
+   at DotNetty.Codecs.Mqtt.MqttDecoder.Decode(IChannelHandlerContext context, IByteBuffer input, List`1 output)
+   at DotNetty.Codecs.ReplayingDecoder`1.CallDecode(IChannelHandlerContext context, IByteBuffer input, List`1 output)
+   at DotNetty.Codecs.ByteToMessageDecoder.ChannelRead(IChannelHandlerContext context, Object message)
+   at DotNetty.Transport.Channels.AbstractChannelHandlerContext.InvokeChannelRead(Object msg)
 ```
 
 ## Build
