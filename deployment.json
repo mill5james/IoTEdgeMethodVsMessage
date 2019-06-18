@@ -21,9 +21,12 @@
                         "type": "docker",
                         "env": {
                             "EnableMethod": {
-                                "value": "true"
+                                "value": "false"
                             },
                             "EnableMessage": {
+                                "value": "true"
+                            },
+                            "EnableHistogram": {
                                 "value": "true"
                             }
                         },
