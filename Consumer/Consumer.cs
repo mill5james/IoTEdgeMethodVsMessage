@@ -141,7 +141,7 @@ namespace IoTEdge
 
         private static async Task PrintStatistics(CancellationToken cancellationToken)
         {
-            Func<(long min, long max, long avg), long, (long, long, long)> computeStats = (tuple, val) =>
+            Func<(double min, double max, double avg), double, (double, double, double)> computeStats = (tuple, val) =>
             {
                 tuple.min = Math.Min(tuple.min, val);
                 tuple.max = Math.Max(tuple.max, val);
@@ -152,12 +152,12 @@ namespace IoTEdge
             while (!cancellationToken.IsCancellationRequested)
             {
                 var stats = (
-                    Method: (Request: (min: long.MaxValue, max: long.MinValue, avg: 0L),
-                            Response: (min: long.MaxValue, max: long.MinValue, avg: 0L),
-                            Total: (min: long.MaxValue, max: long.MinValue, avg: 0L)),
-                    Message: (Request: (min: long.MaxValue, max: long.MinValue, avg: 0L),
-                            Response: (min: long.MaxValue, max: long.MinValue, avg: 0L),
-                            Total: (min: long.MaxValue, max: long.MinValue, avg: 0L)));
+                    Method: (Request: (min: double.MaxValue, max: double.MinValue, avg: 0.0d),
+                            Response: (min: double.MaxValue, max: double.MinValue, avg: 0.0d),
+                            Total: (min: double.MaxValue, max: double.MinValue, avg: 0.0d)),
+                    Message: (Request: (min: double.MaxValue, max: double.MinValue, avg: 0.0d),
+                            Response: (min: double.MaxValue, max: double.MinValue, avg: 0.0d),
+                            Total: (min: double.MaxValue, max: double.MinValue, avg: 0.0d)));
 
                 await Task.Delay((int)TimeSpan.FromMinutes(1).TotalMilliseconds, cancellationToken);
                 var count = measurements.Count;
@@ -170,32 +170,32 @@ namespace IoTEdge
                     if (measure.Method == nameof(GetTimeMessage))
                     {
                         messageCount++;
-                        stats.Message.Request = computeStats(stats.Message.Request, (measure.Produced - measure.Begin).Ticks);
-                        stats.Message.Response = computeStats(stats.Message.Response, (measure.End - measure.Produced).Ticks);
-                        stats.Message.Total = computeStats(stats.Message.Total, (measure.End - measure.Begin).Ticks);
+                        stats.Message.Request = computeStats(stats.Message.Request, (measure.Produced - measure.Begin).TotalMilliseconds);
+                        stats.Message.Response = computeStats(stats.Message.Response, (measure.End - measure.Produced).TotalMilliseconds);
+                        stats.Message.Total = computeStats(stats.Message.Total, (measure.End - measure.Begin).TotalMilliseconds);
                     }
                     else
                     {
                         methodCount++;
-                        stats.Method.Request = computeStats(stats.Method.Request, (measure.Produced - measure.Begin).Ticks);
-                        stats.Method.Response = computeStats(stats.Method.Response, (measure.End - measure.Produced).Ticks);
-                        stats.Method.Total = computeStats(stats.Method.Total, (measure.End - measure.Begin).Ticks);
+                        stats.Method.Request = computeStats(stats.Method.Request, (measure.Produced - measure.Begin).TotalMilliseconds);
+                        stats.Method.Response = computeStats(stats.Method.Response, (measure.End - measure.Produced).TotalMilliseconds);
+                        stats.Method.Total = computeStats(stats.Method.Total, (measure.End - measure.Begin).TotalMilliseconds);
                     }
                 }
                 Console.WriteLine("                | Min           | Max           | Avg           |");
                 Console.WriteLine("--------+-------+---------------+---------------+---------------|");
                 if (EnableMessage)
                 {
-                    Console.WriteLine("        | C->P  | {0:mm\\:ss\\.fffffff} | {1:mm\\:ss\\.fffffff} | {2:%mm\\:ss\\.fffffff} |", new TimeSpan(stats.Message.Request.min), new TimeSpan(stats.Message.Request.max), new TimeSpan(stats.Message.Request.avg / count));
-                    Console.WriteLine("Message | P->C  | {0:mm\\:ss\\.fffffff} | {1:mm\\:ss\\.fffffff} | {2:%mm\\:ss\\.fffffff} |", new TimeSpan(stats.Message.Response.min), new TimeSpan(stats.Message.Response.max), new TimeSpan(stats.Message.Response.avg / count));
-                    Console.WriteLine("{3,7:G} | Total | {0:mm\\:ss\\.fffffff} | {1:mm\\:ss\\.fffffff} | {2:%mm\\:ss\\.fffffff} |", new TimeSpan(stats.Message.Total.min), new TimeSpan(stats.Message.Total.max), new TimeSpan(stats.Message.Total.avg / count), messageCount);
+                    Console.WriteLine("        | C->P  | {0:F7} | {1:F7} | {2:F7} |", stats.Message.Request.min, stats.Message.Request.max, stats.Message.Request.avg / count);
+                    Console.WriteLine("Message | P->C  | {0:F7} | {1:F7} | {2:F7} |", stats.Message.Response.min, stats.Message.Response.max, stats.Message.Response.avg / count);
+                    Console.WriteLine("{3,7:G} | Total | {0:F7} | {1:F7} | {2:F7} |", stats.Message.Total.min, stats.Message.Total.max, stats.Message.Total.avg / count, messageCount);
                     Console.WriteLine("--------+-------+---------------+---------------+---------------|");
                 }
                 if (EnableMethod)
                 {
-                    Console.WriteLine("        | C->P  | {0:mm\\:ss\\.fffffff} | {1:mm\\:ss\\.fffffff} | {2:%mm\\:ss\\.fffffff} |", new TimeSpan(stats.Method.Request.min), new TimeSpan(stats.Method.Request.max), new TimeSpan(stats.Method.Request.avg / count));
-                    Console.WriteLine("Method  | P->C  | {0:mm\\:ss\\.fffffff} | {1:mm\\:ss\\.fffffff} | {2:%mm\\:ss\\.fffffff} |", new TimeSpan(stats.Method.Response.min), new TimeSpan(stats.Method.Response.max), new TimeSpan(stats.Method.Response.avg / count));
-                    Console.WriteLine("{3,7:G} | Total | {0:mm\\:ss\\.fffffff} | {1:mm\\:ss\\.fffffff} | {2:%mm\\:ss\\.fffffff} |", new TimeSpan(stats.Method.Total.min), new TimeSpan(stats.Method.Total.max), new TimeSpan(stats.Method.Total.avg / count), methodCount);
+                    Console.WriteLine("        | C->P  | {0:F7} | {1:F7} | {2:F7} |", stats.Method.Request.min, stats.Method.Request.max, stats.Method.Request.avg / count);
+                    Console.WriteLine("Method  | P->C  | {0:F7} | {1:F7} | {2:F7} |", stats.Method.Response.min, stats.Method.Response.max, stats.Method.Response.avg / count);
+                    Console.WriteLine("{3,7:G} | Total | {0:F7} | {1:F7} | {2:F7} |", stats.Method.Total.min, stats.Method.Total.max, stats.Method.Total.avg / count, methodCount);
                     Console.WriteLine("--------+-------+---------------+---------------+---------------|");
                 }
 
