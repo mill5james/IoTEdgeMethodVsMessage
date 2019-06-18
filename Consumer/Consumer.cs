@@ -180,7 +180,7 @@ namespace IoTEdge
                         stats.Message.Request = computeStats(stats.Message.Request, (measure.Produced - measure.Begin).TotalMilliseconds);
                         stats.Message.Response = computeStats(stats.Message.Response, (measure.End - measure.Produced).TotalMilliseconds);
                         stats.Message.Total = computeStats(stats.Message.Total, (measure.End - measure.Begin).TotalMilliseconds);
-                        messageHg[Math.Min((int)Math.Floor((measure.End - measure.Begin).TotalMilliseconds / 1000), messageHg.Length-1)]++;
+                        messageHg[Math.Min((int)Math.Floor((measure.End - measure.Begin).TotalMilliseconds / 1000), messageHg.Length - 1)]++;
                     }
                     else
                     {
@@ -188,20 +188,20 @@ namespace IoTEdge
                         stats.Method.Request = computeStats(stats.Method.Request, (measure.Produced - measure.Begin).TotalMilliseconds);
                         stats.Method.Response = computeStats(stats.Method.Response, (measure.End - measure.Produced).TotalMilliseconds);
                         stats.Method.Total = computeStats(stats.Method.Total, (measure.End - measure.Begin).TotalMilliseconds);
-                        methodHg[Math.Min((int)Math.Floor((measure.End - measure.Begin).TotalMilliseconds / 1000), methodHg.Length-1)]++;
+                        methodHg[Math.Min((int)Math.Floor((measure.End - measure.Begin).TotalMilliseconds / 1000), methodHg.Length - 1)]++;
                     }
                 }
                 if (EnableMessage)
                 {
                     Console.WriteLine("Messages         | Minimum    | Maximum    | Avgerage   |");
-                    Console.WriteLine("---------+-------+------------+------------+------------|");
-                    Console.WriteLine("         | C->P  | {0,10:F4} | {1,10:F4} | {2,10:F4} |", stats.Message.Request.min, stats.Message.Request.max, stats.Message.Request.avg / count);
-                    Console.WriteLine(" {3,7:G} | P->C  | {0,10:F4} | {1,10:F4} | {2,10:F4} |", stats.Message.Response.min, stats.Message.Response.max, stats.Message.Response.avg / count, messageCount);
-                    Console.WriteLine("         | Total | {0,10:F4} | {1,10:F4} | {2,10:F4} |", stats.Message.Total.min, stats.Message.Total.max, stats.Message.Total.avg / count);
-                    Console.WriteLine("---------+-------+------------+------------+------------|");
+                    Console.WriteLine("--------+--------+------------+------------+------------|");
+                    Console.WriteLine("        |  C->P  | {0,10:F4} | {1,10:F4} | {2,10:F4} |", stats.Message.Request.min, stats.Message.Request.max, stats.Message.Request.avg / count);
+                    Console.WriteLine("{3,7:G} |  P->C  | {0,10:F4} | {1,10:F4} | {2,10:F4} |", stats.Message.Response.min, stats.Message.Response.max, stats.Message.Response.avg / count, messageCount);
+                    Console.WriteLine("        |  Total | {0,10:F4} | {1,10:F4} | {2,10:F4} |", stats.Message.Total.min, stats.Message.Total.max, stats.Message.Total.avg / count);
+                    Console.WriteLine("--------+--------+------------+------------+------------|");
                     if (EnableHistogram)
                     {
-                        Console.WriteLine("  Count | Millis | Percentage ");
+                        Console.WriteLine("Count   | Millis | Percentage ");
                         Console.WriteLine("--------+--------+-------------");
                         for (i = 0; i < messageHg.Length; i++)
                         {
@@ -214,11 +214,11 @@ namespace IoTEdge
                 if (EnableMethod)
                 {
                     Console.WriteLine("Method           | Minimum    | Maximum    | Avgerage   |");
-                    Console.WriteLine("---------+-------+------------+------------+------------|");
-                    Console.WriteLine("         | C->P  | {0,10:F4} | {1,10:F4} | {2,10:F4} |", stats.Method.Request.min, stats.Method.Request.max, stats.Method.Request.avg / count);
-                    Console.WriteLine(" {3,7:G} | P->C  | {0,10:F4} | {1,10:F4} | {2,10:F4} |", stats.Method.Response.min, stats.Method.Response.max, stats.Method.Response.avg / count, methodCount);
-                    Console.WriteLine("         | Total | {0,10:F4} | {1,10:F4} | {2,10:F4} |", stats.Method.Total.min, stats.Method.Total.max, stats.Method.Total.avg / count);
-                    Console.WriteLine("---------+-------+------------+------------+------------|");
+                    Console.WriteLine("--------+--------+------------+------------+------------|");
+                    Console.WriteLine("        |  C->P  | {0,10:F4} | {1,10:F4} | {2,10:F4} |", stats.Method.Request.min, stats.Method.Request.max, stats.Method.Request.avg / count);
+                    Console.WriteLine("{3,7:G} |  P->C  | {0,10:F4} | {1,10:F4} | {2,10:F4} |", stats.Method.Response.min, stats.Method.Response.max, stats.Method.Response.avg / count, methodCount);
+                    Console.WriteLine("        |  Total | {0,10:F4} | {1,10:F4} | {2,10:F4} |", stats.Method.Total.min, stats.Method.Total.max, stats.Method.Total.avg / count);
+                    Console.WriteLine("--------+--------+------------+------------+------------|");
                     if (EnableHistogram)
                     {
                         Console.WriteLine("Count   | Millis | Percentage ");
