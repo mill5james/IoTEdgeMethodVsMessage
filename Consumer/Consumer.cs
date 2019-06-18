@@ -139,6 +139,7 @@ namespace IoTEdge
 
         private static void LogTiming(DateTime begin, DateTime produced, DateTime end, [CallerMemberName] string memberName = "") => measurements.Enqueue((memberName, begin, produced, end));
 
+        private static readonly string[] binLables = {"<1000", "1000", "2000", "3000", "4000", "5000", "6000", "7000", "8000", ">9000"};
         private static async Task PrintStatistics(CancellationToken cancellationToken)
         {
             Func<(double min, double max, double avg), double, (double, double, double)> computeStats = (tuple, val) =>
@@ -165,6 +166,8 @@ namespace IoTEdge
                 Console.WriteLine($"{now:O} - {count} items in 1 minute");
                 if (count == 0) continue;
                 int i = 0, messageCount = 0, methodCount = 0;
+                int[] messageHg = new int[10];
+                int[] methodHg = new int[10];
                 while ((i++ < count) && measurements.TryDequeue(out var measure))
                 {
                     if (measure.Method == nameof(GetTimeMessage))
@@ -173,6 +176,7 @@ namespace IoTEdge
                         stats.Message.Request = computeStats(stats.Message.Request, (measure.Produced - measure.Begin).TotalMilliseconds);
                         stats.Message.Response = computeStats(stats.Message.Response, (measure.End - measure.Produced).TotalMilliseconds);
                         stats.Message.Total = computeStats(stats.Message.Total, (measure.End - measure.Begin).TotalMilliseconds);
+                        messageHg[Math.Min((int)Math.Floor((measure.End - measure.Begin).TotalMilliseconds/1000), 9)]++;
                     }
                     else
                     {
@@ -180,25 +184,42 @@ namespace IoTEdge
                         stats.Method.Request = computeStats(stats.Method.Request, (measure.Produced - measure.Begin).TotalMilliseconds);
                         stats.Method.Response = computeStats(stats.Method.Response, (measure.End - measure.Produced).TotalMilliseconds);
                         stats.Method.Total = computeStats(stats.Method.Total, (measure.End - measure.Begin).TotalMilliseconds);
+                        methodHg[Math.Min((int)Math.Floor((measure.End - measure.Begin).TotalMilliseconds/1000), 9)]++;
                     }
                 }
-                Console.WriteLine("                | Min           | Max           | Avg           |");
-                Console.WriteLine("--------+-------+---------------+---------------+---------------|");
                 if (EnableMessage)
                 {
-                    Console.WriteLine("        | C->P  | {0:F7} | {1:F7} | {2:F7} |", stats.Message.Request.min, stats.Message.Request.max, stats.Message.Request.avg / count);
-                    Console.WriteLine("Message | P->C  | {0:F7} | {1:F7} | {2:F7} |", stats.Message.Response.min, stats.Message.Response.max, stats.Message.Response.avg / count);
-                    Console.WriteLine("{3,7:G} | Total | {0:F7} | {1:F7} | {2:F7} |", stats.Message.Total.min, stats.Message.Total.max, stats.Message.Total.avg / count, messageCount);
-                    Console.WriteLine("--------+-------+---------------+---------------+---------------|");
+                    Console.WriteLine("Messages        | Minimum    | Maximum    | Avgerage   |");
+                    Console.WriteLine("--------+-------+------------+------------+------------|");
+                    Console.WriteLine("        | C->P  | {0,10:F4} | {1,10:F4} | {2,10:F4} |", stats.Message.Request.min, stats.Message.Request.max, stats.Message.Request.avg / count);
+                    Console.WriteLine("{3,7:G} | P->C  | {0,10:F4} | {1,10:F4} | {2,10:F4} |", stats.Message.Response.min, stats.Message.Response.max, stats.Message.Response.avg / count, messageCount);
+                    Console.WriteLine("        | Total | {0,10:F4} | {1,10:F4} | {2,10:F4} |", stats.Message.Total.min, stats.Message.Total.max, stats.Message.Total.avg / count);
+                    Console.WriteLine("--------+-------+------------+------------+------------|");
+                    Console.WriteLine("  Count | Mills | Percentage ");
+                    Console.WriteLine("--------+-------+-------------");
+                    for (i = 0; i < messageHg.Length; i++)
+                    {
+                        Console.WriteLine("{0,7:G} | {1,5} | {2}", messageHg[i], binLables[i], new String('*', (int)Math.Ceiling(((double)messageHg[i]) / ((double)messageCount) * (messageHg.Length + 1))));
+                        
+                    }
+                    Console.WriteLine("--------+-------+-------------");
                 }
                 if (EnableMethod)
                 {
-                    Console.WriteLine("        | C->P  | {0:F7} | {1:F7} | {2:F7} |", stats.Method.Request.min, stats.Method.Request.max, stats.Method.Request.avg / count);
-                    Console.WriteLine("Method  | P->C  | {0:F7} | {1:F7} | {2:F7} |", stats.Method.Response.min, stats.Method.Response.max, stats.Method.Response.avg / count);
-                    Console.WriteLine("{3,7:G} | Total | {0:F7} | {1:F7} | {2:F7} |", stats.Method.Total.min, stats.Method.Total.max, stats.Method.Total.avg / count, methodCount);
-                    Console.WriteLine("--------+-------+---------------+---------------+---------------|");
+                    Console.WriteLine("Method          | Minimum    | Maximum    | Avgerage   |");
+                    Console.WriteLine("--------+-------+------------+------------+------------|");
+                    Console.WriteLine("        | C->P  | {0,10:F4} | {1,10:F4} | {2,10:F4} |", stats.Method.Request.min, stats.Method.Request.max, stats.Method.Request.avg / count);
+                    Console.WriteLine("{3,7:G} | P->C  | {0,10:F4} | {1,10:F4} | {2,10:F4} |", stats.Method.Response.min, stats.Method.Response.max, stats.Method.Response.avg / count, methodCount);
+                    Console.WriteLine("        | Total | {0,10:F4} | {1,10:F4} | {2,10:F4} |", stats.Method.Total.min, stats.Method.Total.max, stats.Method.Total.avg / count);
+                    Console.WriteLine("--------+-------+------------+------------+------------|");
+                    Console.WriteLine("Count   | Mills | Percentage ");
+                    Console.WriteLine("--------+-------+-------------");
+                    for (i = 0; i < methodHg.Length; i++)
+                    {
+                        Console.WriteLine("{0,7:G} | {1,5} | {2}", methodHg[i], binLables[i], new String('*', (int)Math.Ceiling(((double)methodHg[i]) / ((double)methodCount) * (methodHg.Length + 1))));
+                    }
+                    Console.WriteLine("--------+-------+-------------");
                 }
-
             }
         }
     }
