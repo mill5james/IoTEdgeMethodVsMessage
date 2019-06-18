@@ -17,6 +17,7 @@ namespace IoTEdge
         private static string DeviceId { get; } = Environment.GetEnvironmentVariable("IOTEDGE_DEVICEID");
         private static bool EnableMethod = true;
         private static bool EnableMessage = true;
+        private static bool EnableHistogram = true;
         private static readonly string[] TrueStrings = { "y", "yes", "true", "on", "1" };
 
         public static async Task Main(string[] args)
@@ -34,9 +35,12 @@ namespace IoTEdge
             Console.WriteLine("{0:O} - Starting", DateTime.Now);
 
             EnableMessage = TrueStrings.Contains(Environment.GetEnvironmentVariable("EnableMessage") ?? bool.TrueString, StringComparer.OrdinalIgnoreCase);
+            Console.WriteLine($"{DateTime.Now:O} - EnableMessage:{EnableMessage}");
             EnableMethod = TrueStrings.Contains(Environment.GetEnvironmentVariable("EnableMethod") ?? bool.TrueString, StringComparer.OrdinalIgnoreCase);
+            Console.WriteLine($"{DateTime.Now:O} - EnableMethod:{EnableMethod}");
+            EnableHistogram = TrueStrings.Contains(Environment.GetEnvironmentVariable("EnableHistogram") ?? bool.TrueString, StringComparer.OrdinalIgnoreCase);
+            Console.WriteLine($"{DateTime.Now:O} - EnableHistogram:{EnableHistogram}");
 
-            Console.WriteLine("{0:O} - EnableMessage:{1} EnableMethod:{2}", DateTime.Now, EnableMessage, EnableMethod);
             ITransportSettings[] settings = { new MqttTransportSettings(TransportType.Mqtt_Tcp_Only) };
             using (var moduleClient = await ModuleClient.CreateFromEnvironmentAsync(settings))
             using (var resetEvent = new ManualResetEventSlim(false))
@@ -139,7 +143,7 @@ namespace IoTEdge
 
         private static void LogTiming(DateTime begin, DateTime produced, DateTime end, [CallerMemberName] string memberName = "") => measurements.Enqueue((memberName, begin, produced, end));
 
-        private static readonly string[] binLables = {"<1000", "1000", "2000", "3000", "4000", "5000", "6000", "7000", "8000", ">9000"};
+        private static readonly string[] binLables = { "<1000", "1000", "2000", "3000", "4000", "5000", "6000", "7000", "8000", "9000", ">10000" };
         private static async Task PrintStatistics(CancellationToken cancellationToken)
         {
             Func<(double min, double max, double avg), double, (double, double, double)> computeStats = (tuple, val) =>
@@ -166,8 +170,8 @@ namespace IoTEdge
                 Console.WriteLine($"{now:O} - {count} items in 1 minute");
                 if (count == 0) continue;
                 int i = 0, messageCount = 0, methodCount = 0;
-                int[] messageHg = new int[10];
-                int[] methodHg = new int[10];
+                int[] messageHg = new int[binLables.Length];
+                int[] methodHg = new int[binLables.Length];
                 while ((i++ < count) && measurements.TryDequeue(out var measure))
                 {
                     if (measure.Method == nameof(GetTimeMessage))
@@ -176,7 +180,7 @@ namespace IoTEdge
                         stats.Message.Request = computeStats(stats.Message.Request, (measure.Produced - measure.Begin).TotalMilliseconds);
                         stats.Message.Response = computeStats(stats.Message.Response, (measure.End - measure.Produced).TotalMilliseconds);
                         stats.Message.Total = computeStats(stats.Message.Total, (measure.End - measure.Begin).TotalMilliseconds);
-                        messageHg[Math.Min((int)Math.Floor((measure.End - measure.Begin).TotalMilliseconds/1000), 9)]++;
+                        messageHg[Math.Min((int)Math.Floor((measure.End - measure.Begin).TotalMilliseconds / 1000), messageHg.Length-1)]++;
                     }
                     else
                     {
@@ -184,7 +188,7 @@ namespace IoTEdge
                         stats.Method.Request = computeStats(stats.Method.Request, (measure.Produced - measure.Begin).TotalMilliseconds);
                         stats.Method.Response = computeStats(stats.Method.Response, (measure.End - measure.Produced).TotalMilliseconds);
                         stats.Method.Total = computeStats(stats.Method.Total, (measure.End - measure.Begin).TotalMilliseconds);
-                        methodHg[Math.Min((int)Math.Floor((measure.End - measure.Begin).TotalMilliseconds/1000), 9)]++;
+                        methodHg[Math.Min((int)Math.Floor((measure.End - measure.Begin).TotalMilliseconds / 1000), methodHg.Length-1)]++;
                     }
                 }
                 if (EnableMessage)
@@ -195,14 +199,17 @@ namespace IoTEdge
                     Console.WriteLine("{3,7:G} | P->C  | {0,10:F4} | {1,10:F4} | {2,10:F4} |", stats.Message.Response.min, stats.Message.Response.max, stats.Message.Response.avg / count, messageCount);
                     Console.WriteLine("        | Total | {0,10:F4} | {1,10:F4} | {2,10:F4} |", stats.Message.Total.min, stats.Message.Total.max, stats.Message.Total.avg / count);
                     Console.WriteLine("--------+-------+------------+------------+------------|");
-                    Console.WriteLine("  Count | Mills | Percentage ");
-                    Console.WriteLine("--------+-------+-------------");
-                    for (i = 0; i < messageHg.Length; i++)
+                    if (EnableHistogram)
                     {
-                        Console.WriteLine("{0,7:G} | {1,5} | {2}", messageHg[i], binLables[i], new String('*', (int)Math.Ceiling(((double)messageHg[i]) / ((double)messageCount) * (messageHg.Length + 1))));
-                        
+                        Console.WriteLine("  Count | Millis | Percentage ");
+                        Console.WriteLine("--------+--------+-------------");
+                        for (i = 0; i < messageHg.Length; i++)
+                        {
+                            Console.WriteLine("{0,7:G} | {1,6} | {2}", messageHg[i], binLables[i], new String('█', (int)Math.Ceiling(((double)messageHg[i]) / ((double)messageCount) * (messageHg.Length + 1))));
+
+                        }
+                        Console.WriteLine("--------+--------+-------------");
                     }
-                    Console.WriteLine("--------+-------+-------------");
                 }
                 if (EnableMethod)
                 {
@@ -212,13 +219,16 @@ namespace IoTEdge
                     Console.WriteLine("{3,7:G} | P->C  | {0,10:F4} | {1,10:F4} | {2,10:F4} |", stats.Method.Response.min, stats.Method.Response.max, stats.Method.Response.avg / count, methodCount);
                     Console.WriteLine("        | Total | {0,10:F4} | {1,10:F4} | {2,10:F4} |", stats.Method.Total.min, stats.Method.Total.max, stats.Method.Total.avg / count);
                     Console.WriteLine("--------+-------+------------+------------+------------|");
-                    Console.WriteLine("Count   | Mills | Percentage ");
-                    Console.WriteLine("--------+-------+-------------");
-                    for (i = 0; i < methodHg.Length; i++)
+                    if (EnableHistogram)
                     {
-                        Console.WriteLine("{0,7:G} | {1,5} | {2}", methodHg[i], binLables[i], new String('*', (int)Math.Ceiling(((double)methodHg[i]) / ((double)methodCount) * (methodHg.Length + 1))));
+                        Console.WriteLine("Count   | Millis | Percentage ");
+                        Console.WriteLine("--------+--------+-------------");
+                        for (i = 0; i < methodHg.Length; i++)
+                        {
+                            Console.WriteLine("{0,7:G} | {1,6} | {2}", methodHg[i], binLables[i], new String('█', (int)Math.Ceiling(((double)methodHg[i]) / ((double)methodCount) * (methodHg.Length + 1))));
+                        }
+                        Console.WriteLine("--------+--------+-------------");
                     }
-                    Console.WriteLine("--------+-------+-------------");
                 }
             }
         }
