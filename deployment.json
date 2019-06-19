@@ -21,7 +21,7 @@
                         "type": "docker",
                         "env": {
                             "EnableMethod": {
-                                "value": "false"
+                                "value": "true"
                             },
                             "EnableMessage": {
                                 "value": "true"
@@ -75,8 +75,8 @@
         "$edgeHub": {
             "properties.desired": {
                 "routes": {
-                    "consumerToProducer": "FROM /messages/modules/consumer/outputs/GetTimeMessage INTO BrokeredEndpoint(\"/modules/producer/inputs/GetTimeMessage\")",
-                    "producerToConsumer": "FROM /messages/modules/producer/outputs/GetTimeMessage INTO BrokeredEndpoint(\"/modules/consumer/inputs/GetTimeMessage\")"
+                    "ConsumerToProducer": "FROM /messages/modules/consumer/outputs/GetTimeMessage INTO BrokeredEndpoint(\"/modules/producer/inputs/GetTimeMessage\")",
+                    "ProducerToConsumer": "FROM /messages/modules/producer/outputs/GetTimeMessage INTO BrokeredEndpoint(\"/modules/consumer/inputs/GetTimeMessage\")"
                 },
                 "schemaVersion": "1.0",
                 "storeAndForwardConfiguration": {
