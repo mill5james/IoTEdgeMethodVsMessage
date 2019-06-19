@@ -23,20 +23,53 @@ The statisitcs are collected by the Consumer module every minute in a background
 * The total number messages send and received and method calls
 * The latency for sending a message or invoking a method from the consumer to the producer (C->P)
 * The latency for sending a message or handling the method invocation from the producer to the consumer (P->C)
-* The total latency as seen at the consumer (Total).
+* The total latency as seen at the consumer (Total)
+* A histogram of the total latency in 1 second bins
+
+#### Example of the consumer module output every minute:
 
 ```  txt
-2019-06-01T18:00:00.0000000+00:00 - 2336 items in 1 minute
-                | Min           | Max           | Avg           |
---------+-------+---------------+---------------+---------------|
-        | C->P  | 00:00.0011081 | 00:16.0559861 | 00:00.0102317 |
-Message | P->C  | 00:00.0010394 | 01:30.7039632 | 00:00.0506138 |
-   1008 | Total | 00:00.0024657 | 01:46.7599493 | 00:00.0608455 |
---------+-------+---------------+---------------+---------------|
-        | C->P  | 00:00.0136449 | 00:04.2036823 | 00:00.0155379 |
-Method  | P->C  | 00:00.0012644 | 00:07.4075739 | 00:00.0062872 |
-   1713 | Total | 00:00.0157815 | 00:07.4268208 | 00:00.0218252 |
---------+-------+---------------+---------------+---------------|
+2019-06-19T19:32:16.4161739+00:00 - 2868 items in 1 minute
+Messages         | Minimum    | Maximum    | Average    |
+--------+--------+------------+------------+------------|
+        |  C->P  |     1.0952 | 10019.3094 |    16.2191 |
+    936 |  P->C  |     0.9817 |    51.9430 |     1.3836 |
+        |  Total |     2.5858 | 10022.2115 |    17.6027 |
+--------+--------+------------+------------+------------|
+Count   | Millis | Percentage
+--------+--------+-------------
+    930 |  <1000 | ████████████
+      0 |   1000 |
+      0 |   2000 |
+      2 |   3000 | █
+      1 |   4000 | █
+      0 |   5000 |
+      0 |   6000 |
+      0 |   7000 |
+      0 |   8000 |
+      0 |   9000 |
+      3 | >10000 | █
+--------+--------+-------------
+Method           | Minimum    | Maximum    | Average    |
+--------+--------+------------+------------+------------|
+        |  C->P  |    14.1958 |  4504.8295 |    17.5319 |
+   1932 |  P->C  |     0.8823 |   106.8569 |     1.5188 |
+        |  Total |    15.5089 |  4508.3599 |    19.0508 |
+--------+--------+------------+------------+------------|
+Count   | Millis | Percentage
+--------+--------+-------------
+   1930 |  <1000 | ████████████
+      0 |   1000 |
+      0 |   2000 |
+      1 |   3000 | █
+      1 |   4000 | █
+      0 |   5000 |
+      0 |   6000 |
+      0 |   7000 |
+      0 |   8000 |
+      0 |   9000 |
+      0 | >10000 |
+--------+--------+-------------
 ```
 
 ## Build
