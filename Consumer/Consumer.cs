@@ -193,7 +193,7 @@ namespace IoTEdge
                 }
                 if (EnableMessage)
                 {
-                    Console.WriteLine("Messages         | Minimum    | Maximum    | Average    |");
+                    Console.WriteLine("Messages         | Minimum    | Maximum    | Avgerage   |");
                     Console.WriteLine("--------+--------+------------+------------+------------|");
                     Console.WriteLine("        |  C->P  | {0,10:F4} | {1,10:F4} | {2,10:F4} |", stats.Message.Request.min, stats.Message.Request.max, stats.Message.Request.avg / count);
                     Console.WriteLine("{3,7:G} |  P->C  | {0,10:F4} | {1,10:F4} | {2,10:F4} |", stats.Message.Response.min, stats.Message.Response.max, stats.Message.Response.avg / count, messageCount);
@@ -213,7 +213,7 @@ namespace IoTEdge
                 }
                 if (EnableMethod)
                 {
-                    Console.WriteLine("Method           | Minimum    | Maximum    | Average    |");
+                    Console.WriteLine("Method           | Minimum    | Maximum    | Avgerage   |");
                     Console.WriteLine("--------+--------+------------+------------+------------|");
                     Console.WriteLine("        |  C->P  | {0,10:F4} | {1,10:F4} | {2,10:F4} |", stats.Method.Request.min, stats.Method.Request.max, stats.Method.Request.avg / count);
                     Console.WriteLine("{3,7:G} |  P->C  | {0,10:F4} | {1,10:F4} | {2,10:F4} |", stats.Method.Response.min, stats.Method.Response.max, stats.Method.Response.avg / count, methodCount);

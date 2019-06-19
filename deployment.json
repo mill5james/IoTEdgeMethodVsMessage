@@ -15,7 +15,7 @@
                     },
                     "consumer": {
                         "settings": {
-                            "image": "mercury:5001/consumer",
+                            "image": "mill5james/consumer:latest",
                             "createOptions": "{}"
                         },
                         "type": "docker",
