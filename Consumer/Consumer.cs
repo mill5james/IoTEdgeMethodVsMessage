@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Azure.Devices.Client;
+using Microsoft.Azure.Devices.Client.Exceptions;
 using Microsoft.Azure.Devices.Client.Transport.Mqtt;
 using Newtonsoft.Json.Linq;
 
@@ -54,7 +55,7 @@ namespace IoTEdge
                 Console.CancelKeyPress += (sender, cpe) => cts.Cancel();
 
                 await Task.WhenAll(
-                    EnableMethod ? Task.Run(async () => await GetTimeMethod(moduleClient, cts.Token)) : Task.CompletedTask,
+                    EnableMethod ? Task.Run(async () => await GetTimeMethod(moduleClient, cts)) : Task.CompletedTask,
                     EnableMessage ? Task.Run(async () => await RequestTimeMessage(moduleClient, resetEvent, cts.Token)) : Task.CompletedTask,
                     Task.Run(() => PrintStatistics(cts.Token)),
                     WhenCancelled(cts.Token));
@@ -69,8 +70,9 @@ namespace IoTEdge
             return tcs.Task;
         }
 
-        private static async Task GetTimeMethod(ModuleClient moduleClient, CancellationToken cancellationToken)
+        private static async Task GetTimeMethod(ModuleClient moduleClient, CancellationTokenSource cts)
         {
+            var cancellationToken = cts.Token;
             while (!cancellationToken.IsCancellationRequested)
             {
                 try
@@ -82,7 +84,14 @@ namespace IoTEdge
                     var produced = payload.Value<DateTime>("UtcTime");
                     LogTiming(begin, produced, end);
                 }
-                catch (System.Exception ex)
+                catch (IotHubCommunicationException cex)
+                {
+                    LogException(cex);
+                    //This is fatal since we never recover once we see this message.
+                    //Just cancel and hopefully we restart
+                    if (cex.Message.Equals("Address already in use")) cts.Cancel();
+                }
+                catch (Exception ex)
                 {
                     LogException(ex);
                 }
