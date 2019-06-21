@@ -121,7 +121,7 @@ If you want deploy these modules along other modules in your environment, the on
 
 ### Customize your deployment
 
-You can disable invoking methods or sending messages from consumer module the deployment by passing `false` to the `EnableMethod` or `EnableMessage` environment variables.
+You can disable invoking methods or sending messages from consumer module the deployment by passing `false` to the `EnableMethod` or `EnableMessage` environment variables. If you don't care about the histogram, you can set `EnableHistogram` to `false`.
 
 ``` json
    "consumer": {
@@ -135,6 +135,9 @@ You can disable invoking methods or sending messages from consumer module the de
                "value": "true"
             },
             "EnableMessage": {
+               "value": "true"
+            },
+            "EnableHistogram": {
                "value": "true"
             }
       },
